@@ -32,7 +32,7 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { id: 'home', label: 'ACCUEIL', icon: Home, action: goHome },
     { id: 'search', label: 'CHERCHER', icon: Search, action: goSearch },
-    { id: 'furniture', label: 'MAGASINS DE MEUBLES', icon: Store, action: () => setActiveNavTab('furniture_marketplace') },
+    { id: 'furniture', label: 'MOBILIERS', icon: Store, action: () => setActiveNavTab('furniture_marketplace') },
     { id: 'favorites', label: 'FAVORIS', icon: Heart, action: () => openComingSection('Favoris') },
     { id: 'appointments', label: 'MES RENDEZ-VOUS', icon: CalendarCheck, action: () => openComingSection('Mes rendez-vous') },
     { id: 'cart', label: 'MON PANIER', icon: ShoppingCart, action: () => openComingSection('Mon panier') },
