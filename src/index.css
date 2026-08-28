@@ -1,1 +1,57 @@
 @import "tailwindcss";
+
+html, body, #root {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+button, input, select, textarea {
+  max-width: 100%;
+}
+
+@media (max-width: 767px) {
+  main {
+    width: 100%;
+    min-width: 0;
+  }
+
+  table {
+    display: block;
+    width: 100%;
+  }
+
+  table thead {
+    display: none;
+  }
+
+  table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  table tr {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, .18);
+  }
+
+  table td {
+    display: block;
+    width: 100%;
+    padding: 6px 0 !important;
+    text-align: left !important;
+    white-space: normal !important;
+  }
+
+  table td select,
+  table td button {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  .overflow-x-auto {
+    overflow-x: visible !important;
+  }
+}
