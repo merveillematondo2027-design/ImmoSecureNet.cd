@@ -1,0 +1,118 @@
+{
+  "__description__": "Blueprint for ImmoSecureNet, a real estate application with multiple user roles, property management, verification flows, and notifications.",
+  "users": {
+    "__doc__": "Users of the platform (Admin, Agent, Owner, Auditor, etc.)",
+    "__schema__": {
+      "email": "string",
+      "fullName": "string",
+      "role": "string",
+      "avatarUrl": "string?",
+      "companyName": "string?",
+      "department": "string?",
+      "professionalLicenseNumber": "string?",
+      "identityCardNumber": "string?",
+      "biometricEnabled": "boolean",
+      "twoFactorEnabled": "boolean",
+      "pushNotifEnabled": "boolean",
+      "createdAt": "timestamp"
+    },
+    "__security__": {
+      "read": "request.auth != null",
+      "create": "request.auth != null && request.auth.uid == id",
+      "update": "request.auth != null && (request.auth.uid == id || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'STATE_AUDITOR', 'DEVELOPER_AUDITOR'])",
+      "delete": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'"
+    }
+  },
+  "properties": {
+    "__doc__": "Real estate properties/listings",
+    "__schema__": {
+      "title": "string",
+      "description": "string",
+      "price": "number",
+      "propertyType": "string",
+      "location": "string",
+      "ownerId": "string",
+      "agentId": "string?",
+      "cadastreStatus": "string",
+      "images": "array<string>",
+      "createdAt": "timestamp"
+    },
+    "__security__": {
+      "read": "true",
+      "create": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['OWNER', 'AGENT', 'AGENCY']",
+      "update": "request.auth != null && (resource.data.ownerId == request.auth.uid || resource.data.agentId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'STATE_AUDITOR'])",
+      "delete": "request.auth != null && (resource.data.ownerId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN')"
+    }
+  },
+  "notifications": {
+    "__doc__": "User notifications",
+    "__schema__": {
+      "userId": "string",
+      "type": "string",
+      "title": "string",
+      "message": "string",
+      "isRead": "boolean",
+      "createdAt": "timestamp"
+    },
+    "__security__": {
+      "read": "request.auth != null && resource.data.userId == request.auth.uid",
+      "create": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'STATE_AUDITOR', 'DEVELOPER_AUDITOR']",
+      "update": "request.auth != null && resource.data.userId == request.auth.uid",
+      "delete": "request.auth != null && resource.data.userId == request.auth.uid"
+    }
+  },
+  "sponsoredAds": {
+    "__doc__": "Sponsored advertisements for properties",
+    "__schema__": {
+      "propertyId": "string",
+      "campaignName": "string",
+      "budget": "number",
+      "status": "string",
+      "clicks": "number",
+      "impressions": "number",
+      "startDate": "timestamp",
+      "endDate": "timestamp",
+      "createdAt": "timestamp"
+    },
+    "__security__": {
+      "read": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'AGENT', 'AGENCY']",
+      "create": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'AGENT', 'AGENCY']",
+      "update": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'AGENT', 'AGENCY']",
+      "delete": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'"
+    }
+  },
+  "inquiries": {
+    "__doc__": "Messages or inquiries about a property",
+    "__schema__": {
+      "propertyId": "string",
+      "senderId": "string",
+      "receiverId": "string",
+      "message": "string",
+      "status": "string",
+      "createdAt": "timestamp"
+    },
+    "__security__": {
+      "read": "request.auth != null && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid)",
+      "create": "request.auth != null && request.resource.data.senderId == request.auth.uid",
+      "update": "request.auth != null && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid)",
+      "delete": "request.auth != null && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid)"
+    }
+  },
+  "auditLogs": {
+    "__doc__": "System audit logs for sensitive actions",
+    "__schema__": {
+      "action": "string",
+      "performedBy": "string",
+      "targetResource": "string",
+      "details": "string",
+      "ipAddress": "string",
+      "timestamp": "timestamp"
+    },
+    "__security__": {
+      "read": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'STATE_AUDITOR', 'DEVELOPER_AUDITOR']",
+      "create": "request.auth != null",
+      "update": "false",
+      "delete": "false"
+    }
+  }
+}

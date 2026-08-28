@@ -1,0 +1,17 @@
+--- src/context/PropertyContext.tsx
++++ src/context/PropertyContext.tsx
+@@ -395,20 +395,6 @@
+-    resourceType: StateAuditLog['resourceType'];
+-    resourceId: string;
+-    resourceIdentifier: string;
+-    action: StateAuditLog['action'];
+-    justification: string;
+-    verdict: StateAuditLog['verdict'];
+-  }): Promise<{ success: boolean; error?: string }> => {
+-    // ... logic ...
+-    return { success: true };
+-  };
+-  
+-  const logStateAuditAction = async (action: any): Promise<void> => {
+-    console.log("logStateAuditAction", action);
+-  };

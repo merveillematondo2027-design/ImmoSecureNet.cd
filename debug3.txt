@@ -1,0 +1,11 @@
+        logout,
+
+        switchRole,
+
+        updateProfile,
+
+        isRole,
+
+        hasPermission,
+
+        allUsers,

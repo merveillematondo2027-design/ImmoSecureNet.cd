@@ -1,0 +1,6 @@
+{
+  "name": "ImmoSecureNet",
+  "description": "Plateforme immobilière sécurisée multi-rôles (Marketplace, Agents, Propriétaires, Audit de l'État, Administrateur, AuditLogs Développeur) conçue Mobile-First et prête pour Android.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

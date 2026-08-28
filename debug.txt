@@ -1,0 +1,6 @@
+  logout: () => void;
+
+  switchRole: (role: UserRole) => void;
+
+  updateProfile: (
+    updatedData: Partial<User>

@@ -1,0 +1,12 @@
+{
+  "projectId": "automarket-suite",
+  "appId": "1:881687676656:web:fbd38ec56f50c3540b6435",
+  "apiKey": "AIzaSyB1S6QeLhwUfkovWrcidwchZj4LBwdGwvQ",
+  "authDomain": "automarket-suite.firebaseapp.com",
+  "firestoreDatabaseId": "immosecurenet",
+  "storageBucket": "automarket-suite.firebasestorage.app",
+  "messagingSenderId": "881687676656",
+  "measurementId": "G-1V2LJ52GTC",
+  "oAuthClientId": "881687676656-oj22kkqv92493ul93kphb56b6mdpjeog.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
+}

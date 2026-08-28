@@ -1,0 +1,13 @@
+
+  const switchRole = (
+    role: UserRole
+  ) => {
+    console.warn('switchRole est désactivé. Utilisez l\'authentification Google pour changer de compte.');
+  };
+
+  /**
+   * ============================================================
+   * MODIFIER LE PROFIL
+   * ============================================================
+   */
+
