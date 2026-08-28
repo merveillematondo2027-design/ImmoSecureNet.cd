@@ -1,186 +1,236 @@
 import React, { useState } from 'react';
 import {
   User,
-  ShieldCheck,
-  Smartphone,
-  Fingerprint,
-  Lock,
-  FileCheck2,
-  ExternalLink,
-  LogOut,
-  Moon,
-  Globe,
-  Bell,
-  HelpCircle,
-  Sparkles,
-  Layers,
+  Search,
+  BriefcaseBusiness,
+  Info,
+  Phone,
+  Settings,
+  ChevronDown,
   ChevronRight,
-  Code2,
+  LogOut,
+  LogIn,
+  Building2,
+  Home,
+  ShoppingBag,
+  MapPin,
+  ShieldCheck,
+  Landmark,
+  Handshake,
+  Scale,
+  HardHat,
+  BadgeDollarSign,
+  Eye,
+  HeartHandshake,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useProperties } from '../../context/PropertyContext';
-import { UserRole } from '../../types';
 
-export const UserMenuView: React.FC = () => {
+interface UserMenuViewProps {
+  onOpenAuth?: (mode: 'LOGIN' | 'REGISTER') => void;
+}
+
+type MenuSection = 'accounts' | 'search' | 'services' | 'about' | 'contact' | null;
+
+export const UserMenuView: React.FC<UserMenuViewProps> = ({ onOpenAuth }) => {
   const { currentUser, logout, isAuthenticated } = useAuth();
-  const { showToast, setActiveNavTab } = useProperties();
+  const { setActiveNavTab, setFilters, resetFilters, showToast } = useProperties();
+  const [openSection, setOpenSection] = useState<MenuSection>(null);
 
-  const [biometricEnabled, setBiometricEnabled] = useState(true);
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
-  const [pushNotifEnabled, setPushNotifEnabled] = useState(true);
+  const toggle = (section: MenuSection) => {
+    setOpenSection((current) => (current === section ? null : section));
+  };
+
+  const goToMarketplace = (listingType?: 'SALE' | 'RENT') => {
+    resetFilters();
+    if (listingType) {
+      setFilters((prev) => ({ ...prev, listingType }));
+    }
+    setActiveNavTab('marketplace');
+  };
+
+  const unavailable = (label: string) => {
+    showToast(`${label} sera disponible dans cette rubrique.`, 'info');
+  };
+
+  const sectionButton = (
+    section: Exclude<MenuSection, null>,
+    icon: React.ReactNode,
+    title: string,
+    subtitle: string,
+  ) => (
+    <button
+      type="button"
+      onClick={() => toggle(section)}
+      className="w-full flex items-center gap-3 p-4 text-left bg-white hover:bg-slate-50 transition-colors"
+    >
+      <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1e3a8a] flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-bold text-sm text-slate-900">{title}</div>
+        <div className="text-[11px] text-slate-500 mt-0.5">{subtitle}</div>
+      </div>
+      {openSection === section ? (
+        <ChevronDown className="w-5 h-5 text-slate-400" />
+      ) : (
+        <ChevronRight className="w-5 h-5 text-slate-400" />
+      )}
+    </button>
+  );
+
+  const subItem = (
+    label: string,
+    icon: React.ReactNode,
+    onClick: () => void,
+  ) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white transition-colors border-t border-slate-100"
+    >
+      <div className="text-slate-500">{icon}</div>
+      <span className="text-sm font-medium text-slate-700 flex-1">{label}</span>
+      <ChevronRight className="w-4 h-4 text-slate-300" />
+    </button>
+  );
 
   return (
-    <div className="space-y-6 pb-16 max-w-3xl mx-auto">
-      {/* Profile Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4 text-slate-900">
-        <div className="flex items-center gap-4">
-          {currentUser?.avatarUrl ? (
-            <img
-              src={currentUser.avatarUrl}
-              alt={currentUser.fullName}
-              className="w-16 h-16 rounded-2xl object-cover ring-2 ring-blue-500/20"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-2xl bg-blue-700 flex items-center justify-center text-xl font-bold text-white shadow-xs">
-              {currentUser?.fullName?.charAt(0) || 'U'}
+    <div className="pb-24 max-w-3xl mx-auto space-y-4">
+      <div className="px-1">
+        <h1 className="text-2xl font-black text-[#1e3a8a]">Menu</h1>
+        <p className="text-xs text-slate-500 mt-1">Accédez simplement aux principales rubriques ImmoSecureNet.</p>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm divide-y divide-slate-100">
+        <div>
+          {sectionButton('accounts', <User className="w-5 h-5" />, 'Mes comptes', 'Compte utilisateur, professionnel ou partenaire')}
+          {openSection === 'accounts' && (
+            <div className="bg-slate-50">
+              {isAuthenticated ? (
+                <>
+                  {subItem('Voir mon profil', <User className="w-4 h-4" />, () => unavailable('Profil'))}
+                  {subItem('Mes biens et publications', <Building2 className="w-4 h-4" />, () => setActiveNavTab('owner_properties'))}
+                  {subItem('Mes réservations', <ShoppingBag className="w-4 h-4" />, () => unavailable('Mes réservations'))}
+                </>
+              ) : (
+                <>
+                  {subItem('Se connecter', <LogIn className="w-4 h-4" />, () => onOpenAuth?.('LOGIN'))}
+                  {subItem('Créer un compte', <User className="w-4 h-4" />, () => onOpenAuth?.('REGISTER'))}
+                </>
+              )}
             </div>
           )}
+        </div>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate">
-                {currentUser?.fullName || 'Utilisateur Anonyme'}
-              </h2>
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                <ShieldCheck className="w-3 h-3" /> Certifié
-              </span>
+        <div>
+          {sectionButton('search', <Search className="w-5 h-5" />, 'Rechercher', 'Biens, marché de l’habitat et expériences')}
+          {openSection === 'search' && (
+            <div className="bg-slate-50">
+              {subItem('Biens à vendre', <Home className="w-4 h-4" />, () => goToMarketplace('SALE'))}
+              {subItem('Biens à louer', <MapPin className="w-4 h-4" />, () => goToMarketplace('RENT'))}
+              {subItem("Articles du marché de l’habitat", <ShoppingBag className="w-4 h-4" />, () => unavailable("Marché de l’habitat"))}
+              {subItem('Expériences', <HeartHandshake className="w-4 h-4" />, () => unavailable('Expériences'))}
             </div>
-            <p className="text-xs text-blue-700 font-medium">{currentUser?.email || 'visiteur@immosecure.net'}</p>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              {currentUser?.companyName || currentUser?.department || 'Particulier'}
-            </p>
-          </div>
+          )}
+        </div>
+
+        <div>
+          {sectionButton('services', <BriefcaseBusiness className="w-5 h-5" />, 'Nos Services', 'Sécurité, immobilier, conseil et financement')}
+          {openSection === 'services' && (
+            <div className="bg-slate-50">
+              {subItem('Publicité', <BadgeDollarSign className="w-4 h-4" />, () => unavailable('Publicité'))}
+              {subItem('Vérification et authentification des agents ou agences immobilières', <ShieldCheck className="w-4 h-4" />, () => unavailable('Vérification des professionnels'))}
+              {subItem('Vérification et traçabilité des biens et des transactions', <ShieldCheck className="w-4 h-4" />, () => unavailable('Traçabilité'))}
+              {subItem('Mise en relation : vente, achat ou location', <Handshake className="w-4 h-4" />, () => unavailable('Mise en relation'))}
+              {subItem('Gestion immobilière et gestion locative', <Building2 className="w-4 h-4" />, () => unavailable('Gestion immobilière'))}
+              {subItem('Audits, conseil juridique ou accompagnement administratif', <Scale className="w-4 h-4" />, () => unavailable('Audits et conseil'))}
+              {subItem('Études immobilières, architecture, ingénierie et construction', <HardHat className="w-4 h-4" />, () => unavailable('Études et construction'))}
+              {subItem('Financement immobilier', <Landmark className="w-4 h-4" />, () => unavailable('Financement immobilier'))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          {sectionButton('about', <Info className="w-5 h-5" />, 'À propos de nous', 'Découvrez ImmoSecureNet')}
+          {openSection === 'about' && (
+            <div className="bg-slate-50">
+              {subItem('Notre philosophie', <Eye className="w-4 h-4" />, () => unavailable('Notre philosophie'))}
+              {subItem('Notre vision', <Eye className="w-4 h-4" />, () => unavailable('Notre vision'))}
+              {subItem('Nos valeurs', <HeartHandshake className="w-4 h-4" />, () => unavailable('Nos valeurs'))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          {sectionButton('contact', <Phone className="w-5 h-5" />, 'Contactez-nous', 'Coordonnées et assistance')}
+          {openSection === 'contact' && (
+            <div className="bg-slate-50">
+              {subItem('Coordonnées', <Phone className="w-4 h-4" />, () => unavailable('Coordonnées'))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Security & Authentication Preferences */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3 text-slate-900">
-        <h3 className="font-bold text-xs sm:text-sm text-slate-900 flex items-center gap-2">
-          <Lock className="w-4 h-4 text-blue-700" />
-          <span>Sécurité du Compte & Biométrie</span>
-        </h3>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-            <div className="flex items-center gap-3">
-              <Fingerprint className="w-5 h-5 text-blue-700" />
-              <div>
-                <div className="text-xs font-semibold text-slate-900">Authentification Biométrique (Empreinte / FaceID)</div>
-                <div className="text-[11px] text-slate-500">Verrouillage de l'application Android & Web</div>
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={biometricEnabled}
-              onChange={(e) => setBiometricEnabled(e.target.checked)}
-              className="accent-blue-700 w-4 h-4 cursor-pointer"
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5 text-emerald-600" />
-              <div>
-                <div className="text-xs font-semibold text-slate-900">Double Facteur (2FA / OTP SMS)</div>
-                <div className="text-[11px] text-slate-500">Protection obligatoire pour les transactions et audits</div>
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={twoFactorEnabled}
-              onChange={(e) => setTwoFactorEnabled(e.target.checked)}
-              className="accent-blue-700 w-4 h-4 cursor-pointer"
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-            <div className="flex items-center gap-3">
-              <Bell className="w-5 h-5 text-blue-700" />
-              <div>
-                <div className="text-xs font-semibold text-slate-900">Notifications Push Mobiles</div>
-                <div className="text-[11px] text-slate-500">Alertes temps réel sur les visites et titres</div>
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={pushNotifEnabled}
-              onChange={(e) => setPushNotifEnabled(e.target.checked)}
-              className="accent-blue-700 w-4 h-4 cursor-pointer"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Android Mobile-First Readiness Card */}
-      <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5 shadow-xs space-y-3 text-slate-900">
-        <div className="flex items-center gap-2 text-blue-800 font-bold text-xs sm:text-sm">
-          <Smartphone className="w-4 h-4 text-blue-700" />
-          <span>Architecture Prête pour Application Android (Kotlin / React Native)</span>
-        </div>
-        <p className="text-xs text-slate-600 leading-relaxed">
-          L'interface ImmoSecureNet est modulaire, légère et respecte les normes Material Design 3 :
-          Bottom Navigation tactile, Deep Links vers les annonces, offline caching des titres fonciers et chiffrement matériel KeyStore.
-        </p>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-[11px] text-slate-700 font-mono">
-          <div className="p-2 rounded-xl bg-white border border-blue-200 text-center shadow-xs">
-            <span className="text-emerald-700 font-bold">✓ PWA Ready</span>
-          </div>
-          <div className="p-2 rounded-xl bg-white border border-blue-200 text-center shadow-xs">
-            <span className="text-blue-700 font-bold">✓ Touch 44px+</span>
-          </div>
-          <div className="p-2 rounded-xl bg-white border border-blue-200 text-center shadow-xs">
-            <span className="text-purple-700 font-bold">✓ REST API</span>
-          </div>
-          <div className="p-2 rounded-xl bg-white border border-blue-200 text-center shadow-xs">
-            <span className="text-amber-700 font-bold">✓ APK Target</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Compliance & About */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3 text-slate-900">
-        <h3 className="font-bold text-xs sm:text-sm text-slate-900 flex items-center gap-2">
-          <FileCheck2 className="w-4 h-4 text-purple-700" />
-          <span>Conformité Légale & Cadastre</span>
-        </h3>
-
-        <div className="divide-y divide-slate-100 text-xs text-slate-600">
-          <div className="py-2.5 flex items-center justify-between">
-            <span>Réglementation Foncière & Cadastrale</span>
-            <span className="text-emerald-700 font-semibold">Conforme Loi N°73-021</span>
-          </div>
-          <div className="py-2.5 flex items-center justify-between">
-            <span>Chiffrement des Données Personnelles</span>
-            <span className="text-blue-700 font-mono font-medium">AES-GCM-256</span>
-          </div>
-          <div className="py-2.5 flex items-center justify-between">
-            <span>Version de la Plateforme</span>
-            <span className="text-slate-500 font-mono">v2.4.0 (Enterprise)</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Sign Out Button */}
-      {isAuthenticated && (
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         <button
-          onClick={logout}
-          className="w-full py-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
+          type="button"
+          onClick={() => unavailable('Paramètres')}
+          className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-50 border-b border-slate-100"
         >
-          <LogOut className="w-4 h-4" />
-          <span>Se déconnecter de la session sécurisée</span>
+          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+            <Settings className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <div className="font-bold text-sm text-slate-900">Paramètres</div>
+            <div className="text-[11px] text-slate-500">Préférences de l’application</div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-400" />
         </button>
-      )}
+
+        {isAuthenticated && currentUser ? (
+          <div className="p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-[#1e3a8a] text-white flex items-center justify-center font-bold text-lg">
+                {currentUser.fullName?.charAt(0) || 'U'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-sm text-slate-900 truncate">{currentUser.fullName}</div>
+                <div className="text-xs text-slate-500 truncate">{currentUser.email}</div>
+                <button type="button" onClick={() => unavailable('Profil')} className="text-xs font-bold text-[#1e3a8a] mt-1">Voir le profil</button>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="w-full py-3 rounded-xl bg-rose-50 text-rose-700 font-bold text-sm flex items-center justify-center gap-2 border border-rose-100"
+            >
+              <LogOut className="w-4 h-4" /> Se déconnecter
+            </button>
+          </div>
+        ) : (
+          <div className="p-4">
+            <div className="font-bold text-sm text-slate-900">Profil</div>
+            <p className="text-xs text-slate-500 mt-1 mb-3">Connectez-vous pour publier, gérer vos réservations, vos messages et vos informations.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenAuth?.('LOGIN')}
+                className="py-3 rounded-xl bg-[#1e3a8a] text-white font-bold text-sm"
+              >
+                Se connecter
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenAuth?.('REGISTER')}
+                className="py-3 rounded-xl bg-white text-[#1e3a8a] border border-[#1e3a8a] font-bold text-sm"
+              >
+                S’inscrire
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
