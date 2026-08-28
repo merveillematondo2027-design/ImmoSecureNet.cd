@@ -55,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
               </div>
               <span className="text-[8px] sm:text-[10px] font-black text-slate-700 tracking-[0.16em] leading-none mt-0.5">MULTIMODAL</span>
               <span className="text-[8px] sm:text-[10px] font-semibold text-black leading-none mt-1 whitespace-nowrap truncate">
-                L’habitat en ligne en toute sécurité
+                Le marché de l'habitat en ligne en toute sécurité
               </span>
             </div>
           </button>
