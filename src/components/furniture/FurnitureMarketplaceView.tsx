@@ -85,18 +85,18 @@ export const FurnitureMarketplaceView: React.FC = () => {
 
   const createShop = () => {
     if (!currentUser) {
-      showToast('Connectez-vous ou créez un compte pour ouvrir votre magasin.', 'info');
+      showToast('Connectez-vous ou créez un compte pour ouvrir votre espace Mobilier.', 'info');
       setActiveNavTab('menu');
       return;
     }
-    showToast('Votre espace magasin sera lié à votre profil vendeur.', 'success');
+    showToast('Votre espace Mobilier sera lié à votre profil vendeur.', 'success');
   };
 
   if (selectedShop) {
     return (
       <div className="pb-24 max-w-3xl mx-auto space-y-4">
         <button onClick={() => setSelectedShop(null)} className="inline-flex items-center gap-2 text-sm font-bold text-[#1e3a8a]">
-          <ArrowLeft className="w-4 h-4" /> Retour aux magasins
+          <ArrowLeft className="w-4 h-4" /> Retour aux Mobiliers
         </button>
 
         <section className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
@@ -130,7 +130,7 @@ export const FurnitureMarketplaceView: React.FC = () => {
 
         <section id="shop-catalog" className="scroll-mt-24">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-black text-lg text-slate-900">Catalogue du magasin</h2>
+            <h2 className="font-black text-lg text-slate-900">Catalogue</h2>
             <span className="text-[10px] text-slate-500">Démonstration</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -157,17 +157,17 @@ export const FurnitureMarketplaceView: React.FC = () => {
       <section className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
         <div className="flex items-center gap-2 text-[#1e3a8a]">
           <Store className="w-6 h-6" />
-          <h1 className="text-2xl font-black">Magasins de meubles</h1>
+          <h1 className="text-2xl font-black">Mobiliers</h1>
         </div>
-        <p className="text-sm text-slate-500 mt-2">Les magasins sont présentés par leur logo. Touchez un magasin pour ouvrir sa page, son catalogue et discuter avec le vendeur.</p>
+        <p className="text-sm text-slate-500 mt-2">Les enseignes sont présentées par leur logo. Touchez une enseigne pour ouvrir sa page, son catalogue et discuter directement avec le vendeur.</p>
         <button onClick={createShop} className="w-full mt-4 py-3 rounded-xl bg-[#1e3a8a] text-white font-bold text-sm flex items-center justify-center gap-2">
-          <Plus className="w-4 h-4" /> Créer mon magasin
+          <Plus className="w-4 h-4" /> Créer mon espace Mobilier
         </button>
       </section>
 
       <div className="relative">
         <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher un magasin..." className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher une enseigne..." className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]" />
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -186,12 +186,12 @@ export const FurnitureMarketplaceView: React.FC = () => {
               <span className="font-black text-xs text-slate-900 truncate">{shop.name}</span>
               {shop.verified && <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
             </div>
-            <span className="text-[10px] text-slate-500">Voir le magasin</span>
+            <span className="text-[10px] text-slate-500">Voir la page</span>
           </button>
         ))}
       </div>
 
-      {shops.length === 0 && <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Aucun magasin ne correspond à votre recherche.</div>}
+      {shops.length === 0 && <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Aucune enseigne ne correspond à votre recherche.</div>}
     </div>
   );
 };
