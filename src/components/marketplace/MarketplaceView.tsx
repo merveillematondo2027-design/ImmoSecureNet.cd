@@ -1,328 +1,658 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Search, CheckCircle2, ShieldCheck, MapPin, 
-  Home, Building2, HardHat, Sofa, Lightbulb, Shield,
-  ChevronDown, DollarSign
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ArrowRight,
+  BedDouble,
+  Building2,
+  CheckCircle2,
+  ChevronDown,
+  DollarSign,
+  MapPin,
+  Maximize2,
+  Play,
+  Search,
+  SlidersHorizontal,
 } from 'lucide-react';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { useProperties } from '../../context/PropertyContext';
-import { ListingType, PropertyType } from '../../types';
+import { db } from '../../firebase';
+import { Listing, ListingType, PropertyType, SponsoredAd } from '../../types';
 
-export const MarketplaceView: React.FC = () => {
-  const { listings, setSelectedListing } = useProperties();
-  const [activeTab, setActiveTab] = useState<'LOCATION' | 'VENTE' | 'ACHAT'>('LOCATION');
+type Intent = 'RENT' | 'SALE';
 
-  // We only show a few recent listings
-  const recentListings = useMemo(() => {
-    return listings
-      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-      .slice(0, 3);
-  }, [listings]);
+type ShowcaseItem = {
+  id: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  badge?: string;
+};
 
-  const formatPrice = (price: number, currency: string) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: currency === 'USD' ? 'USD' : currency === 'EUR' ? 'EUR' : 'XAF',
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
+const DEFAULT_ROTATION_SECONDS = 6;
+
+const habitatItems: ShowcaseItem[] = [
+  {
+    id: 'habitat-1',
+    title: 'Matériaux de construction',
+    subtitle: 'Ciment, fer, peinture et autres matériaux',
+    image: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1200&q=80',
+    badge: 'Marché de l’habitat',
+  },
+  {
+    id: 'habitat-2',
+    title: 'Meubles & décoration',
+    subtitle: 'Mobilier et aménagement de la maison',
+    image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80',
+    badge: 'Marché de l’habitat',
+  },
+  {
+    id: 'habitat-3',
+    title: 'Électroménager & équipements',
+    subtitle: 'Équipements pratiques pour votre logement',
+    image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=1200&q=80',
+    badge: 'Marché de l’habitat',
+  },
+  {
+    id: 'habitat-4',
+    title: 'Énergie & solaire',
+    subtitle: 'Solutions d’autonomie pour la maison',
+    image: 'https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=1200&q=80',
+    badge: 'Marché de l’habitat',
+  },
+];
+
+const experienceItems: ShowcaseItem[] = [
+  {
+    id: 'experience-1',
+    title: 'Hôtels & séjours',
+    subtitle: 'Découvrez des lieux de séjour et de détente',
+    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80',
+    badge: 'Expérience',
+  },
+  {
+    id: 'experience-2',
+    title: 'Restaurants',
+    subtitle: 'Adresses et tables à découvrir',
+    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
+    badge: 'Expérience',
+  },
+  {
+    id: 'experience-3',
+    title: 'Parcs & loisirs',
+    subtitle: 'Sorties, détente et activités',
+    image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
+    badge: 'Expérience',
+  },
+  {
+    id: 'experience-4',
+    title: 'Commerces & bonnes adresses',
+    subtitle: 'Des établissements à découvrir près de vous',
+    image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80',
+    badge: 'Expérience',
+  },
+];
+
+const formatPrice = (price: number, currency: string) => {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: currency === 'USD' ? 'USD' : currency === 'EUR' ? 'EUR' : 'XAF',
+    maximumFractionDigits: 0,
+  }).format(price);
+};
+
+const ListingTVStrip: React.FC<{
+  title: string;
+  listings: Listing[];
+  rotationSeconds: number;
+  onOpen: (listing: Listing) => void;
+  onSeeAll: () => void;
+  accent: 'blue' | 'green';
+}> = ({ title, listings, rotationSeconds, onOpen, onSeeAll, accent }) => {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (listings.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % listings.length);
+    }, Math.max(2500, rotationSeconds * 1000));
+    return () => window.clearInterval(timer);
+  }, [listings.length, rotationSeconds]);
+
+  useEffect(() => {
+    if (index >= listings.length) setIndex(0);
+  }, [index, listings.length]);
+
+  const item = listings[index];
+  const accentClass = accent === 'blue' ? 'bg-[#1e3a8a]' : 'bg-[#16a34a]';
 
   return (
-    <div className="space-y-6 pb-20">
-      
-      {/* 1. HERO - TROUVER LE BIEN IDÉAL */}
-      <div className="bg-slate-100 rounded-2xl overflow-hidden shadow-sm flex flex-col md:flex-row relative mt-2">
-        <div className="p-5 md:p-8 flex-1 z-10 bg-gradient-to-r from-slate-100 via-slate-100 to-transparent">
-          <h2 className="text-2xl md:text-3xl font-bold text-[#1e3a8a] mb-1">
-            TROUVER LE BIEN IDÉAL
-          </h2>
-          <p className="text-sm font-bold text-slate-800 mb-4">
-            Vente, location et achat de biens immobiliers
-          </p>
-          
-          <ul className="space-y-1.5 mb-6 md:mb-0">
-            {['Maisons', 'Appartements', 'Terrains', 'Immeubles', 'Bureaux & Commerces'].map((item) => (
-              <li key={item} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <div className="w-4 h-4 rounded-full bg-[#16a34a] flex items-center justify-center">
-                  <CheckCircle2 className="w-3 h-3 text-white" />
-                </div>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="md:w-1/2 md:absolute md:right-0 md:top-0 md:bottom-0">
-          <img 
-            src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" 
-            alt="Maison moderne" 
-            className="w-full h-48 md:h-full object-cover rounded-b-2xl md:rounded-l-none md:rounded-r-2xl"
-          />
-        </div>
+    <section className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight">{title}</h3>
+        <button onClick={onSeeAll} className="text-[11px] sm:text-xs font-bold text-[#1e3a8a] flex items-center gap-1">
+          VOIR TOUT <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
-      {/* 2. RECHERCHE PRINCIPALE */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="flex border-b border-slate-200">
-          <button 
-            onClick={() => setActiveTab('LOCATION')}
-            className={`flex-1 py-3 text-xs md:text-sm font-bold flex items-center justify-center gap-2 ${activeTab === 'LOCATION' ? 'bg-[#1e3a8a] text-white' : 'bg-slate-50 text-slate-600'}`}
-          >
-            <MapPin className="w-4 h-4" /> LOCATION
-          </button>
-          <button 
-            onClick={() => setActiveTab('VENTE')}
-            className={`flex-1 py-3 text-xs md:text-sm font-bold flex items-center justify-center gap-2 ${activeTab === 'VENTE' ? 'bg-[#1e3a8a] text-white' : 'bg-white text-slate-600'}`}
-          >
-            <Search className="w-4 h-4" /> VENTE
-          </button>
-          <button 
-            onClick={() => setActiveTab('ACHAT')}
-            className={`flex-1 py-3 text-xs md:text-sm font-bold flex items-center justify-center gap-2 ${activeTab === 'ACHAT' ? 'bg-[#1e3a8a] text-white' : 'bg-white text-slate-600'}`}
-          >
-            <Home className="w-4 h-4" /> ACHAT
-          </button>
+      {item ? (
+        <button
+          type="button"
+          onClick={() => onOpen(item)}
+          className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-900 shadow-sm text-left group"
+        >
+          <img src={item.mainPhoto} alt={item.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+          <div className={`absolute top-3 left-3 ${accentClass} text-white px-2.5 py-1 rounded-full text-[10px] font-black uppercase`}>
+            {item.listingType === ListingType.RENT ? 'À louer' : 'À vendre'}
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-12 h-12 rounded-full bg-white/90 text-[#1e3a8a] flex items-center justify-center shadow-lg">
+              <Play className="w-5 h-5 ml-0.5" fill="currentColor" />
+            </div>
+          </div>
+          <div className="absolute left-4 right-4 bottom-4 text-white">
+            <div className="font-black text-base sm:text-xl line-clamp-1">{item.title}</div>
+            <div className="text-xs sm:text-sm text-white/85 mt-1 flex items-center justify-between gap-3">
+              <span className="line-clamp-1">{item.location.neighborhood}, {item.location.city}</span>
+              <span className="font-black whitespace-nowrap">{formatPrice(item.price, item.currency)}</span>
+            </div>
+          </div>
+        </button>
+      ) : (
+        <div className="w-full aspect-video rounded-2xl border border-dashed border-slate-300 bg-white flex items-center justify-center text-center p-6 text-sm text-slate-500">
+          Aucune annonce disponible dans cette rubrique pour le moment.
         </div>
-        <div className="p-4 space-y-3">
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-              <MapPin className="w-4 h-4" />
-            </div>
-            <select className="w-full bg-white border border-slate-300 text-slate-700 text-sm rounded-lg pl-9 pr-8 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]">
-              <option>Province</option>
-              <option>Kinshasa</option>
-              <option>Kongo Central</option>
-              <option>Haut-Katanga</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-          
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-              <Building2 className="w-4 h-4" />
-            </div>
-            <select className="w-full bg-white border border-slate-300 text-slate-700 text-sm rounded-lg pl-9 pr-8 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]">
-              <option>Commune</option>
-              <option>Gombe</option>
-              <option>Limete</option>
-              <option>Ngaliema</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+      )}
 
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-              <MapPin className="w-4 h-4" />
-            </div>
-            <select className="w-full bg-white border border-slate-300 text-slate-700 text-sm rounded-lg pl-9 pr-8 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]">
-              <option>Quartier</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-              <Building2 className="w-4 h-4" />
-            </div>
-            <select className="w-full bg-white border border-slate-300 text-slate-700 text-sm rounded-lg pl-9 pr-8 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]">
-              <option>Type de bien</option>
-              <option>Maison</option>
-              <option>Appartement</option>
-              <option>Terrain</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-              <DollarSign className="w-4 h-4" />
-            </div>
-            <select className="w-full bg-white border border-slate-300 text-slate-700 text-sm rounded-lg pl-9 pr-8 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]">
-              <option>Budget</option>
-              <option>&lt; 50 000 $</option>
-              <option>50 000 $ - 200 000 $</option>
-              <option>&gt; 200 000 $</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-
-          <button className="w-full py-3 mt-2 bg-[#1e3a8a] text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#1e40af] transition-colors">
-            <Search className="w-4 h-4" /> RECHERCHER
-          </button>
-        </div>
-      </div>
-
-      {/* 3. LES 5 UNIVERS */}
-      <div className="grid grid-cols-5 gap-2 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-        {[
-          { icon: Search, label: 'TROUVER', sub: 'Le bien idéal', color: 'text-[#16a34a]' },
-          { icon: HardHat, label: 'CONSTRUIRE', sub: 'Vos projets', color: 'text-[#1e3a8a]' },
-          { icon: Sofa, label: 'EQUIPER', sub: 'Votre maison', color: 'text-[#16a34a]' },
-          { icon: Lightbulb, label: 'AMÉNAGER', sub: 'Votre espace', color: 'text-[#1e3a8a]' },
-          { icon: Shield, label: 'SÉCURISER', sub: 'En toute confiance', color: 'text-[#16a34a]' },
-        ].map((item, idx) => {
-          const Icon = item.icon;
-          return (
-            <div key={idx} className="flex flex-col items-center justify-start text-center gap-1 cursor-pointer hover:opacity-80">
-              <Icon className={`w-6 h-6 md:w-8 md:h-8 ${item.color}`} />
-              <div className={`text-[9px] md:text-xs font-bold mt-1 ${item.color}`}>{item.label}</div>
-              <div className="text-[8px] md:text-[10px] text-slate-600 leading-tight">{item.sub}</div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* 4. DEUX BLOCS PRINCIPAUX */}
-      <div className="flex flex-col md:flex-row gap-4">
-        {/* BLOC 1: IMMOBILIER */}
-        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-          <div className="bg-[#1e3a8a] p-3 text-center text-white">
-            <h3 className="font-bold text-sm">IMMOBILIER</h3>
-            <p className="text-[10px]">Vente, location et achat</p>
-          </div>
-          <div className="p-4 grid grid-cols-3 gap-4 flex-1">
-            {[
-              { icon: Home, label: 'Maisons' },
-              { icon: Building2, label: 'Appartements' },
-              { icon: MapPin, label: 'Terrains' },
-              { icon: Building2, label: 'Immeubles' },
-              { icon: Home, label: 'Bureaux' },
-              { icon: Building2, label: 'Commerces' },
-            ].map((cat, i) => (
-              <div key={i} className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80">
-                <cat.icon className="w-8 h-8 text-[#1e3a8a]" />
-                <span className="text-[10px] font-semibold text-slate-700 text-center">{cat.label}</span>
-              </div>
-            ))}
-          </div>
-          <div className="p-3">
-            <button className="w-full py-2.5 bg-[#1e3a8a] text-white rounded-lg font-bold text-xs hover:bg-[#1e40af] transition-colors">
-              VOIR TOUS LES BIENS
-            </button>
-          </div>
-        </div>
-
-        {/* BLOC 2: MARCHÉ DE L'HABITAT */}
-        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-          <div className="bg-[#16a34a] p-3 text-center text-white">
-            <h3 className="font-bold text-sm">LE MARCHÉ DE L'HABITAT</h3>
-            <p className="text-[10px]">Tout pour construire, équiper et aménager</p>
-          </div>
-          <div className="p-4 grid grid-cols-3 gap-4 flex-1">
-            {[
-              { icon: Sofa, label: 'Meubles & Décoration' },
-              { icon: Lightbulb, label: 'Électroménager & Équipements' },
-              { icon: Lightbulb, label: 'Énergie & Solaire' },
-              { icon: HardHat, label: 'Matériaux de Construction' },
-              { icon: Sofa, label: 'Équipements pour la Maison' },
-            ].map((cat, i) => (
-              <div key={i} className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80">
-                <cat.icon className="w-8 h-8 text-[#16a34a]" />
-                <span className="text-[10px] font-semibold text-slate-700 text-center leading-tight">{cat.label}</span>
-              </div>
-            ))}
-          </div>
-          <div className="p-3">
-            <button className="w-full py-2.5 bg-[#16a34a] text-white rounded-lg font-bold text-xs hover:bg-green-700 transition-colors">
-              VOIR LE MARCHÉ
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 5. VÉRIFIÉ PAR IMMOSECURENET */}
-      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row items-center gap-4">
-        <div className="shrink-0">
-          <div className="w-16 h-16 relative flex items-center justify-center">
-            <Shield className="w-16 h-16 text-[#1e3a8a]" strokeWidth={1.5} />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-8 h-8 bg-[#16a34a] rounded-full flex items-center justify-center border-2 border-white">
-                <CheckCircle2 className="w-5 h-5 text-white" />
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="flex-1 w-full text-center md:text-left">
-          <h3 className="font-bold text-sm text-[#1e3a8a] mb-2 uppercase">VÉRIFIÉ PAR IMMOSECURENET</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-1 text-[11px] font-semibold text-slate-700">
-            <div className="flex items-center gap-1 justify-center md:justify-start">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a]" /> Biens vérifiés
-            </div>
-            <div className="flex items-center gap-1 justify-center md:justify-start">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a]" /> Professionnels identifiés
-            </div>
-            <div className="flex items-center gap-1 justify-center md:justify-start">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a]" /> Annonces authentifiées
-            </div>
-            <div className="flex items-center gap-1 justify-center md:justify-start">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a]" /> Fournisseurs partenaires
-            </div>
-          </div>
-        </div>
-        <div className="border-t md:border-t-0 md:border-l border-slate-200 pt-3 md:pt-0 md:pl-4 text-center md:text-left w-full md:w-auto">
-          <p className="text-[11px] font-bold text-[#16a34a]">Votre sécurité,<br/>notre engagement.</p>
-        </div>
-      </div>
-
-      {/* 6. BIENS RÉCEMMENT AJOUTÉS */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-[#1e3a8a] text-sm uppercase">BIENS RÉCEMMENT AJOUTÉS</h3>
-          <button className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center">
-            Voir tout <ChevronDown className="w-4 h-4 -rotate-90 ml-1" />
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {recentListings.map((listing) => (
-            <div 
+      {listings.length > 1 && (
+        <div className="flex items-center justify-center gap-1.5">
+          {listings.map((listing, dotIndex) => (
+            <button
               key={listing.id}
-              onClick={() => setSelectedListing(listing)}
-              className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden cursor-pointer hover:shadow-md transition-shadow group flex flex-col"
-            >
-              <div className="relative h-44 shrink-0 bg-slate-100">
-                <img 
-                  src={listing.mainPhoto} 
-                  alt={listing.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute top-2 left-2 flex flex-col gap-1">
-                  <span className={`px-2 py-1 text-[10px] font-bold text-white rounded shadow-sm ${
-                    listing.listingType === ListingType.SALE ? 'bg-emerald-600' : 'bg-[#16a34a]'
-                  }`}>
-                    {listing.listingType === ListingType.SALE ? 'À VENDRE' : 'À LOUER'}
-                  </span>
-                </div>
-                {listing.publishedBy.isVerified && (
-                  <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1.5 rounded-full shadow-sm text-blue-700">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                )}
-              </div>
-              
-              <div className="p-3.5 flex flex-col flex-1">
-                <div className="mb-2">
-                  <h4 className="font-bold text-sm text-slate-900 line-clamp-1">{listing.title}</h4>
-                  <p className="text-xs text-slate-500">{listing.location.neighborhood} / {listing.location.city}</p>
-                </div>
-                <div className="font-bold text-lg text-slate-900 mb-3">
-                  {formatPrice(listing.price, listing.currency)}
-                  {listing.listingType === ListingType.RENT && <span className="text-[10px] font-normal text-slate-500 ml-1">/ mois</span>}
-                </div>
-                <div className="flex items-center gap-3 text-xs text-slate-600 mt-auto border-t border-slate-100 pt-3">
-                  <div className="flex items-center gap-1.5"><Sofa className="w-3.5 h-3.5" /> {listing.bedrooms}</div>
-                  <div className="flex items-center gap-1.5"><Sofa className="w-3.5 h-3.5" /> {listing.bathrooms}</div>
-                  <div className="flex items-center gap-1.5 ml-auto"><Building2 className="w-3.5 h-3.5" /> {listing.surface} m²</div>
-                </div>
-              </div>
-            </div>
+              type="button"
+              aria-label={`Afficher ${listing.title}`}
+              onClick={() => setIndex(dotIndex)}
+              className={`h-1.5 rounded-full transition-all ${dotIndex === index ? 'w-5 bg-[#1e3a8a]' : 'w-1.5 bg-slate-300'}`}
+            />
           ))}
-          {recentListings.length === 0 && (
-            <div className="col-span-full py-8 text-center text-slate-500 text-sm">
-              Aucun bien récent.
+        </div>
+      )}
+    </section>
+  );
+};
+
+const GenericTVStrip: React.FC<{
+  title: string;
+  items: ShowcaseItem[];
+  rotationSeconds: number;
+  onOpen: (item: ShowcaseItem) => void;
+  onSeeAll: () => void;
+  accent: 'blue' | 'green';
+}> = ({ title, items, rotationSeconds, onOpen, onSeeAll, accent }) => {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % items.length);
+    }, Math.max(2500, rotationSeconds * 1000));
+    return () => window.clearInterval(timer);
+  }, [items.length, rotationSeconds]);
+
+  const item = items[index];
+  const accentClass = accent === 'blue' ? 'bg-[#1e3a8a]' : 'bg-[#16a34a]';
+
+  return (
+    <section className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight">{title}</h3>
+        <button onClick={onSeeAll} className="text-[11px] sm:text-xs font-bold text-[#1e3a8a] flex items-center gap-1">
+          VOIR TOUT <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onOpen(item)}
+        className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-900 shadow-sm text-left group"
+      >
+        <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+        <div className={`absolute top-3 left-3 ${accentClass} text-white px-2.5 py-1 rounded-full text-[10px] font-black uppercase`}>
+          {item.badge}
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-12 h-12 rounded-full bg-white/90 text-[#1e3a8a] flex items-center justify-center shadow-lg">
+            <Play className="w-5 h-5 ml-0.5" fill="currentColor" />
+          </div>
+        </div>
+        <div className="absolute left-4 right-4 bottom-4 text-white">
+          <div className="font-black text-base sm:text-xl">{item.title}</div>
+          <div className="text-xs sm:text-sm text-white/85 mt-1">{item.subtitle}</div>
+        </div>
+      </button>
+
+      <div className="flex items-center justify-center gap-1.5">
+        {items.map((entry, dotIndex) => (
+          <button
+            key={entry.id}
+            type="button"
+            aria-label={`Afficher ${entry.title}`}
+            onClick={() => setIndex(dotIndex)}
+            className={`h-1.5 rounded-full transition-all ${dotIndex === index ? 'w-5 bg-[#1e3a8a]' : 'w-1.5 bg-slate-300'}`}
+          />
+        ))}
+      </div>
+    </section>
+  );
+};
+
+export const MarketplaceView: React.FC = () => {
+  const { listings, setSelectedListing, showToast } = useProperties();
+  const [intent, setIntent] = useState<Intent>('RENT');
+  const [propertyType, setPropertyType] = useState('');
+  const [location, setLocation] = useState('');
+  const [details, setDetails] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [searchSubmitted, setSearchSubmitted] = useState(false);
+  const [rotationSeconds, setRotationSeconds] = useState(DEFAULT_ROTATION_SECONDS);
+  const [sponsoredAds, setSponsoredAds] = useState<SponsoredAd[]>([]);
+  const [feedPage, setFeedPage] = useState(2);
+  const resultRef = useRef<HTMLDivElement | null>(null);
+  const feedSentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const homepageRef = doc(db, 'appSettings', 'homepage');
+    return onSnapshot(
+      homepageRef,
+      (snap) => {
+        if (!snap.exists()) return;
+        const value = Number(snap.data()?.rotationSeconds);
+        if (Number.isFinite(value) && value >= 2 && value <= 60) setRotationSeconds(value);
+      },
+      () => setRotationSeconds(DEFAULT_ROTATION_SECONDS)
+    );
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/sponsors')
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => {
+        if (active && Array.isArray(data)) setSponsoredAds(data.filter((ad) => ad?.isActive !== false));
+      })
+      .catch(() => {
+        if (active) setSponsoredAds([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const node = feedSentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setFeedPage((page) => Math.min(page + 1, 12));
+      },
+      { rootMargin: '500px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const sortedListings = useMemo(
+    () => [...listings].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()),
+    [listings]
+  );
+
+  const saleListings = useMemo(
+    () => sortedListings.filter((listing) => listing.listingType === ListingType.SALE),
+    [sortedListings]
+  );
+
+  const rentListings = useMemo(
+    () => sortedListings.filter((listing) => listing.listingType === ListingType.RENT),
+    [sortedListings]
+  );
+
+  const filteredResults = useMemo(() => {
+    const expectedListingType = intent === 'RENT' ? ListingType.RENT : ListingType.SALE;
+    const normalizedLocation = location.trim().toLowerCase();
+    const normalizedDetails = details.trim().toLowerCase();
+    const min = minPrice ? Number(minPrice) : null;
+    const max = maxPrice ? Number(maxPrice) : null;
+
+    return sortedListings.filter((listing) => {
+      if (listing.listingType !== expectedListingType) return false;
+
+      if (propertyType) {
+        const acceptedTypes: Record<string, PropertyType[]> = {
+          LAND: [PropertyType.LAND],
+          HOME: [PropertyType.HOUSE, PropertyType.VILLA, PropertyType.BUILDING, PropertyType.APARTMENT],
+          OFFICE: [PropertyType.COMMERCIAL],
+          COMMERCIAL: [PropertyType.COMMERCIAL],
+          OTHER: [],
+        };
+        const accepted = acceptedTypes[propertyType] || [];
+        if (propertyType === 'OTHER') {
+          if ([PropertyType.LAND, PropertyType.HOUSE, PropertyType.VILLA, PropertyType.BUILDING, PropertyType.APARTMENT, PropertyType.COMMERCIAL].includes(listing.propertyType)) return false;
+        } else if (!accepted.includes(listing.propertyType)) {
+          return false;
+        }
+      }
+
+      if (normalizedLocation) {
+        const haystack = `${listing.location.address} ${listing.location.city} ${listing.location.neighborhood} ${listing.location.country}`.toLowerCase();
+        if (!haystack.includes(normalizedLocation)) return false;
+      }
+
+      if (normalizedDetails) {
+        const haystack = `${listing.features.join(' ')} ${listing.bedrooms} chambres ${listing.bathrooms} salles de bain ${listing.shortDescription}`.toLowerCase();
+        if (!haystack.includes(normalizedDetails)) return false;
+      }
+
+      if (min !== null && Number.isFinite(min) && listing.price < min) return false;
+      if (max !== null && Number.isFinite(max) && listing.price > max) return false;
+      return true;
+    });
+  }, [details, intent, location, maxPrice, minPrice, propertyType, sortedListings]);
+
+  const handleSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+    setSearchSubmitted(true);
+    window.setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
+
+  const showAllForIntent = (nextIntent: Intent) => {
+    setIntent(nextIntent);
+    setPropertyType('');
+    setLocation('');
+    setDetails('');
+    setMinPrice('');
+    setMaxPrice('');
+    setSearchSubmitted(true);
+    window.setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
+
+  const feedListings = useMemo(() => {
+    const source = sortedListings.length ? sortedListings : [];
+    const cycles = Array.from({ length: feedPage }, (_, cycle) =>
+      source.map((listing) => ({ ...listing, __feedKey: `${cycle}-${listing.id}` }))
+    );
+    return cycles.flat();
+  }, [feedPage, sortedListings]);
+
+  return (
+    <div className="space-y-6 pb-24">
+      <section className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-7 shadow-sm mt-1">
+        <h1 className="text-3xl sm:text-4xl font-black text-[#1e3a8a] tracking-tight leading-none">
+          TROUVER LE BIEN IDÉAL
+        </h1>
+
+        <ul className="mt-5 space-y-2.5">
+          {[
+            'Terrains / Parcelles',
+            'Maisons / Villas / Immeubles',
+            'Bureaux',
+            'Commerces',
+            'Autres',
+          ].map((item) => (
+            <li key={item} className="flex items-center gap-2.5 text-base sm:text-lg font-bold text-slate-700">
+              <span className="w-5 h-5 rounded-full bg-[#16a34a] flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+              </span>
+              {item}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+        <div className="grid grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setIntent('RENT')}
+            className={`py-3.5 text-sm sm:text-base font-black transition-colors ${intent === 'RENT' ? 'bg-[#16a34a] text-white' : 'bg-emerald-50 text-emerald-800'}`}
+          >
+            À LOUER
+          </button>
+          <button
+            type="button"
+            onClick={() => setIntent('SALE')}
+            className={`py-3.5 text-sm sm:text-base font-black transition-colors ${intent === 'SALE' ? 'bg-[#1e3a8a] text-white' : 'bg-blue-50 text-blue-900'}`}
+          >
+            À VENDRE
+          </button>
+        </div>
+
+        <form onSubmit={handleSearch} className="p-4 sm:p-5 space-y-3">
+          <div className="relative">
+            <Building2 className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <select
+              value={propertyType}
+              onChange={(event) => setPropertyType(event.target.value)}
+              className="w-full bg-white border border-slate-300 text-slate-700 text-sm rounded-xl pl-9 pr-9 py-3 appearance-none focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]"
+            >
+              <option value="">Type de bien</option>
+              <option value="LAND">Terrains / Parcelles</option>
+              <option value="HOME">Maisons / Villas / Immeubles</option>
+              <option value="OFFICE">Bureaux</option>
+              <option value="COMMERCIAL">Commerces</option>
+              <option value="OTHER">Autres</option>
+            </select>
+            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+
+          <div className="relative">
+            <MapPin className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+              placeholder="Localisation : ville, commune ou quartier"
+              className="w-full bg-white border border-slate-300 text-slate-700 text-sm rounded-xl pl-9 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]"
+            />
+          </div>
+
+          <div className="relative">
+            <SlidersHorizontal className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              value={details}
+              onChange={(event) => setDetails(event.target.value)}
+              placeholder="Plus de détails : chambres, piscine, parking…"
+              className="w-full bg-white border border-slate-300 text-slate-700 text-sm rounded-xl pl-9 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="relative">
+              <DollarSign className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="number"
+                min="0"
+                inputMode="numeric"
+                value={minPrice}
+                onChange={(event) => setMinPrice(event.target.value)}
+                placeholder="Prix min"
+                className="w-full bg-white border border-slate-300 text-slate-700 text-sm rounded-xl pl-9 pr-3 py-3 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]"
+              />
+            </div>
+            <div className="relative">
+              <DollarSign className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="number"
+                min="0"
+                inputMode="numeric"
+                value={maxPrice}
+                onChange={(event) => setMaxPrice(event.target.value)}
+                placeholder="Prix max"
+                className="w-full bg-white border border-slate-300 text-slate-700 text-sm rounded-xl pl-9 pr-3 py-3 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className={`w-full py-3.5 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-colors ${intent === 'RENT' ? 'bg-[#16a34a] hover:bg-green-700' : 'bg-[#1e3a8a] hover:bg-[#1e40af]'}`}
+          >
+            <Search className="w-4 h-4" /> RECHERCHER LES ANNONCES {intent === 'RENT' ? 'À LOUER' : 'À VENDRE'}
+          </button>
+        </form>
+      </section>
+
+      {searchSubmitted && (
+        <section ref={resultRef} className="scroll-mt-24 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-black text-base sm:text-lg text-slate-900">
+                Résultats — {intent === 'RENT' ? 'À louer' : 'À vendre'}
+              </h2>
+              <p className="text-xs text-slate-500">{filteredResults.length} annonce(s) correspondante(s)</p>
+            </div>
+          </div>
+
+          {filteredResults.length ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredResults.map((listing) => (
+                <button
+                  type="button"
+                  key={listing.id}
+                  onClick={() => setSelectedListing(listing)}
+                  className="bg-white border border-slate-200 rounded-2xl overflow-hidden text-left shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <img src={listing.mainPhoto} alt={listing.title} className="w-full aspect-video object-cover" />
+                  <div className="p-3">
+                    <div className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase text-white ${listing.listingType === ListingType.RENT ? 'bg-[#16a34a]' : 'bg-[#1e3a8a]'}`}>
+                      {listing.listingType === ListingType.RENT ? 'À louer' : 'À vendre'}
+                    </div>
+                    <h3 className="font-black text-sm text-slate-900 mt-2 line-clamp-1">{listing.title}</h3>
+                    <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> {listing.location.neighborhood}, {listing.location.city}
+                    </p>
+                    <div className="flex items-center justify-between gap-2 mt-2">
+                      <span className="font-black text-[#1e3a8a] text-sm">{formatPrice(listing.price, listing.currency)}</span>
+                      <span className="flex items-center gap-2 text-[10px] text-slate-500">
+                        <span className="flex items-center gap-0.5"><BedDouble className="w-3 h-3" /> {listing.bedrooms}</span>
+                        <span className="flex items-center gap-0.5"><Maximize2 className="w-3 h-3" /> {listing.surface} m²</span>
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 text-center text-sm text-slate-500">
+              Aucun bien {intent === 'RENT' ? 'à louer' : 'à vendre'} ne correspond encore à ces critères.
             </div>
           )}
-        </div>
-      </div>
+        </section>
+      )}
 
+      <ListingTVStrip
+        title="Vente"
+        listings={saleListings}
+        rotationSeconds={rotationSeconds}
+        onOpen={setSelectedListing}
+        onSeeAll={() => showAllForIntent('SALE')}
+        accent="blue"
+      />
+
+      <ListingTVStrip
+        title="Location"
+        listings={rentListings}
+        rotationSeconds={rotationSeconds}
+        onOpen={setSelectedListing}
+        onSeeAll={() => showAllForIntent('RENT')}
+        accent="green"
+      />
+
+      <GenericTVStrip
+        title="Marché de l’habitat"
+        items={habitatItems}
+        rotationSeconds={rotationSeconds}
+        accent="green"
+        onOpen={(item) => showToast(`${item.title} : catalogue en préparation.`, 'info')}
+        onSeeAll={() => showToast('Le catalogue complet du Marché de l’habitat sera relié à ses produits.', 'info')}
+      />
+
+      <GenericTVStrip
+        title="Expériences"
+        items={experienceItems}
+        rotationSeconds={rotationSeconds}
+        accent="blue"
+        onOpen={(item) => showToast(`${item.title} : détails en préparation.`, 'info')}
+        onSeeAll={() => showToast('La rubrique Expériences complète sera reliée à son catalogue.', 'info')}
+      />
+
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-slate-900">Publicités & actualités</h2>
+            <p className="text-xs text-slate-500">Un fil continu d’annonces et de contenus sponsorisés.</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {sponsoredAds.map((ad) => (
+            <a
+              key={`sponsor-${ad.id}`}
+              href={ad.targetUrl || '#'}
+              target={ad.targetUrl ? '_blank' : undefined}
+              rel="noreferrer"
+              className="block bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm"
+            >
+              <div className="px-4 pt-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-black text-slate-400">Sponsorisé</div>
+                  <div className="font-black text-sm text-slate-900">{ad.sponsorName}</div>
+                </div>
+                {ad.sponsorBadge && <span className="text-[9px] font-black px-2 py-1 rounded-full bg-blue-50 text-blue-800">{ad.sponsorBadge}</span>}
+              </div>
+              <img src={ad.imageUrl} alt={ad.title} className="w-full aspect-video object-cover mt-3" />
+              <div className="p-4">
+                <h3 className="font-black text-base text-slate-900">{ad.title}</h3>
+                <p className="text-xs text-slate-600 mt-1">{ad.tagline || ad.description}</p>
+              </div>
+            </a>
+          ))}
+
+          {feedListings.map((listing: Listing & { __feedKey: string }) => (
+            <button
+              key={listing.__feedKey}
+              type="button"
+              onClick={() => setSelectedListing(listing)}
+              className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm text-left"
+            >
+              <div className="px-4 py-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-black text-slate-400">Annonce immobilière</div>
+                  <div className="font-black text-sm text-slate-900 line-clamp-1">{listing.publishedBy.companyName || listing.publishedBy.name}</div>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-[9px] font-black text-white uppercase ${listing.listingType === ListingType.RENT ? 'bg-[#16a34a]' : 'bg-[#1e3a8a]'}`}>
+                  {listing.listingType === ListingType.RENT ? 'À louer' : 'À vendre'}
+                </span>
+              </div>
+              <img src={listing.mainPhoto} alt={listing.title} className="w-full aspect-video object-cover" />
+              <div className="p-4">
+                <h3 className="font-black text-base text-slate-900">{listing.title}</h3>
+                <p className="text-xs text-slate-600 mt-1 line-clamp-2">{listing.shortDescription}</p>
+                <div className="flex items-center justify-between gap-3 mt-3">
+                  <span className="text-[11px] text-slate-500 flex items-center gap-1"><MapPin className="w-3 h-3" /> {listing.location.neighborhood}, {listing.location.city}</span>
+                  <span className="font-black text-[#1e3a8a] text-sm whitespace-nowrap">{formatPrice(listing.price, listing.currency)}</span>
+                </div>
+              </div>
+            </button>
+          ))}
+
+          {!sponsoredAds.length && !feedListings.length && (
+            <div className="p-8 bg-white border border-slate-200 rounded-2xl text-center text-sm text-slate-500">
+              Le fil se remplira automatiquement avec les prochaines annonces et publicités publiées.
+            </div>
+          )}
+          <div ref={feedSentinelRef} className="h-4" />
+        </div>
+      </section>
     </div>
   );
 };
