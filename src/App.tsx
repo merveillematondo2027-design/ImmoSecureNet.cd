@@ -124,7 +124,7 @@ const MainAppContent: React.FC = () => {
       case 'journal': return <JournalView />;
       case 'messages': return <ProtectedModule title="Connectez-vous pour accéder à vos messages" description="Vous devez être connecté pour utiliser la messagerie sécurisée ImmoSecureNet." onOpenAuth={handleOpenAuth}><MessagingView /></ProtectedModule>;
       case 'notifications': return <ProtectedModule title="Connectez-vous pour accéder à vos notifications" description="Vous devez être connecté pour voir vos alertes et notifications en temps réel." onOpenAuth={handleOpenAuth}><NotificationsView /></ProtectedModule>;
-      case 'menu': return <ProtectedModule title="Connectez-vous pour accéder au menu" description="Vous devez être connecté pour gérer vos paramètres et votre profil." onOpenAuth={handleOpenAuth}><UserMenuView /></ProtectedModule>;
+      case 'menu': return <UserMenuView onOpenAuth={handleOpenAuth} />;
       default: return <MarketplaceView />;
     }
   };
