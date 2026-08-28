@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, BedDouble, Building2, CheckCircle2, ChevronDown, DollarSign, MapPin,
-  Maximize2, MessageCircle, Play, Search, SlidersHorizontal, Store,
+  Maximize2, MessageCircle, Play, Search, SlidersHorizontal, ShoppingCart,
 } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useProperties } from '../../context/PropertyContext';
@@ -13,12 +13,6 @@ type ShowcaseItem = { id: string; title: string; subtitle: string; image: string
 
 const DEFAULT_ROTATION_SECONDS = 6;
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=1600&q=85';
-
-const habitatItems: ShowcaseItem[] = [
-  { id: 'habitat-1', title: 'Matériaux de construction', subtitle: 'Ciment, fer, peinture et autres matériaux', image: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1200&q=80', badge: 'Marché de l’habitat' },
-  { id: 'habitat-2', title: 'Électroménager & équipements', subtitle: 'Équipements pratiques pour votre logement', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=1200&q=80', badge: 'Marché de l’habitat' },
-  { id: 'habitat-3', title: 'Énergie & solaire', subtitle: 'Solutions d’autonomie pour la maison', image: 'https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=1200&q=80', badge: 'Marché de l’habitat' },
-];
 
 const experienceItems: ShowcaseItem[] = [
   { id: 'experience-1', title: 'Hôtels & séjours', subtitle: 'Lieux de séjour et de détente', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80', badge: 'Expérience' },
@@ -35,7 +29,16 @@ const formatPrice = (price: number, currency: string) => new Intl.NumberFormat('
   style: 'currency', currency: currency === 'USD' ? 'USD' : currency === 'EUR' ? 'EUR' : 'XAF', maximumFractionDigits: 0,
 }).format(price);
 
-const ListingStrip: React.FC<{ title: string; listings: Listing[]; seconds: number; onOpen: (l: Listing) => void; onChat: (l: Listing) => void; onSeeAll: () => void; accent: string }> = ({ title, listings, seconds, onOpen, onChat, onSeeAll, accent }) => {
+const ListingStrip: React.FC<{
+  title: string;
+  listings: Listing[];
+  seconds: number;
+  onOpen: (l: Listing) => void;
+  onChat: (l: Listing) => void;
+  onCart?: (l: Listing) => void;
+  onSeeAll: () => void;
+  accent: string;
+}> = ({ title, listings, seconds, onOpen, onChat, onCart, onSeeAll, accent }) => {
   const [index, setIndex] = useState(0);
   useEffect(() => {
     if (listings.length <= 1) return;
@@ -43,6 +46,8 @@ const ListingStrip: React.FC<{ title: string; listings: Listing[]; seconds: numb
     return () => window.clearInterval(timer);
   }, [listings.length, seconds]);
   const item = listings[index];
+  const showCart = Boolean(item && item.listingType === ListingType.SALE && onCart);
+
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between"><h3 className="font-black text-base text-slate-900 uppercase">{title}</h3><button onClick={onSeeAll} className="text-xs font-black text-[#1e3a8a] flex items-center gap-1">VOIR TOUT <ArrowRight className="w-3.5 h-3.5" /></button></div>
@@ -53,7 +58,11 @@ const ListingStrip: React.FC<{ title: string; listings: Listing[]; seconds: numb
           <div className="absolute inset-0 flex items-center justify-center"><span className="w-11 h-11 rounded-full bg-white/90 text-[#1e3a8a] flex items-center justify-center"><Play className="w-5 h-5" fill="currentColor" /></span></div>
           <div className="absolute left-4 right-4 bottom-4 text-white"><div className="font-black text-lg line-clamp-1">{item.title}</div><div className="text-xs mt-1 flex justify-between gap-2"><span>{item.location.neighborhood}, {item.location.city}</span><strong>{formatPrice(item.price, item.currency)}</strong></div></div>
         </button>
-        <div className="grid grid-cols-2"><button onClick={() => onOpen(item)} className="py-3 text-xs font-bold text-[#1e3a8a]">Voir l’annonce</button><button onClick={() => onChat(item)} className="py-3 text-xs font-bold text-[#16a34a] border-l border-slate-100 flex items-center justify-center gap-1"><MessageCircle className="w-4 h-4" /> Discuter</button></div>
+        <div className={`grid ${showCart ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <button onClick={() => onOpen(item)} className="py-3 text-xs font-bold text-[#1e3a8a]">Voir l’annonce</button>
+          <button onClick={() => onChat(item)} className="py-3 text-xs font-bold text-[#16a34a] border-l border-slate-100 flex items-center justify-center gap-1"><MessageCircle className="w-4 h-4" /> Discuter</button>
+          {showCart && <button onClick={() => onCart?.(item)} className="py-3 text-xs font-bold text-slate-700 border-l border-slate-100 flex items-center justify-center gap-1"><ShoppingCart className="w-4 h-4" /> Panier</button>}
+        </div>
       </div> : <div className="aspect-video bg-white border border-dashed border-slate-300 rounded-2xl flex items-center justify-center text-sm text-slate-500">Aucune annonce disponible</div>}
     </section>
   );
@@ -103,6 +112,17 @@ export const MarketplaceView: React.FC = () => {
   const chooseCategory = (value: string) => { if (value === 'FURNITURE') { setActiveNavTab('furniture_marketplace'); return; } setPropertyType(value); setSearchSubmitted(false); document.getElementById('home-search')?.scrollIntoView({ behavior: 'smooth' }); };
   const chat = (listing: Listing) => { sessionStorage.setItem('immosecure_pending_contact', JSON.stringify({ type: 'LISTING', listingId: listing.id, publisherId: listing.publishedBy.id, publisherName: listing.publishedBy.name, listingTitle: listing.title })); setActiveNavTab('messages'); };
   const seeAll = (nextIntent: Intent) => { setIntent(nextIntent); setSearchSubmitted(true); setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth' }), 50); };
+  const addToCart = (listing: Listing) => {
+    const key = 'immosecure_cart';
+    const current = JSON.parse(localStorage.getItem(key) || '[]') as Array<{ id: string; title: string; price: number; currency: string; image: string }>;
+    if (!current.some((item) => item.id === listing.id)) {
+      current.push({ id: listing.id, title: listing.title, price: listing.price, currency: listing.currency, image: listing.mainPhoto });
+      localStorage.setItem(key, JSON.stringify(current));
+      showToast('Annonce ajoutée à Mon panier.', 'success');
+    } else {
+      showToast('Cette annonce est déjà dans Mon panier.', 'info');
+    }
+  };
 
   const categories = [
     ['LAND', 'Terrains / Parcelles'], ['HOME', 'Maisons / Villas / Immeubles'], ['OFFICE', 'Bureaux'], ['COMMERCIAL', 'Commerces'], ['FURNITURE', 'Magasins de meubles'], ['OTHER', 'Autres'],
@@ -125,11 +145,10 @@ export const MarketplaceView: React.FC = () => {
       </form>
     </section>
 
-    {searchSubmitted && <section ref={resultRef} className="space-y-3 scroll-mt-24"><div><h2 className="font-black text-lg">Résultats — {intent === 'RENT' ? 'À louer' : 'À vendre'}</h2><p className="text-xs text-slate-500">{filteredResults.length} annonce(s)</p></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{filteredResults.map((listing) => <article key={listing.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden"><button onClick={() => setSelectedListing(listing)} className="w-full text-left"><img src={listing.mainPhoto} alt={listing.title} className="w-full aspect-video object-cover" /><div className="p-3"><h3 className="font-black text-sm">{listing.title}</h3><div className="mt-2 flex justify-between text-xs"><span>{listing.location.neighborhood}, {listing.location.city}</span><strong className="text-[#1e3a8a]">{formatPrice(listing.price, listing.currency)}</strong></div><div className="mt-2 flex gap-3 text-[10px] text-slate-500"><span className="flex gap-1"><BedDouble className="w-3 h-3" />{listing.bedrooms}</span><span className="flex gap-1"><Maximize2 className="w-3 h-3" />{listing.surface} m²</span></div></div></button><button onClick={() => chat(listing)} className="w-full py-3 border-t border-slate-100 text-[#16a34a] font-bold text-xs flex items-center justify-center gap-1"><MessageCircle className="w-4 h-4" /> Discuter avec l’annonceur</button></article>)}</div></section>}
+    {searchSubmitted && <section ref={resultRef} className="space-y-3 scroll-mt-24"><div><h2 className="font-black text-lg">Résultats — {intent === 'RENT' ? 'À louer' : 'À vendre'}</h2><p className="text-xs text-slate-500">{filteredResults.length} annonce(s)</p></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{filteredResults.map((listing) => <article key={listing.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden"><button onClick={() => setSelectedListing(listing)} className="w-full text-left"><img src={listing.mainPhoto} alt={listing.title} className="w-full aspect-video object-cover" /><div className="p-3"><h3 className="font-black text-sm">{listing.title}</h3><div className="mt-2 flex justify-between text-xs"><span>{listing.location.neighborhood}, {listing.location.city}</span><strong className="text-[#1e3a8a]">{formatPrice(listing.price, listing.currency)}</strong></div><div className="mt-2 flex gap-3 text-[10px] text-slate-500"><span className="flex gap-1"><BedDouble className="w-3 h-3" />{listing.bedrooms}</span><span className="flex gap-1"><Maximize2 className="w-3 h-3" />{listing.surface} m²</span></div></div></button><div className={`grid ${listing.listingType === ListingType.SALE ? 'grid-cols-2' : 'grid-cols-1'} border-t border-slate-100`}><button onClick={() => chat(listing)} className="py-3 text-[#16a34a] font-bold text-xs flex items-center justify-center gap-1"><MessageCircle className="w-4 h-4" /> Discuter</button>{listing.listingType === ListingType.SALE && <button onClick={() => addToCart(listing)} className="py-3 text-slate-700 font-bold text-xs border-l border-slate-100 flex items-center justify-center gap-1"><ShoppingCart className="w-4 h-4" /> Panier</button>}</div></article>)}</div></section>}
 
-    <ListingStrip title="À vendre" listings={saleListings} seconds={rotationSeconds} onOpen={setSelectedListing} onChat={chat} onSeeAll={() => seeAll('SALE')} accent="bg-[#1e3a8a]" />
+    <ListingStrip title="À vendre" listings={saleListings} seconds={rotationSeconds} onOpen={setSelectedListing} onChat={chat} onCart={addToCart} onSeeAll={() => seeAll('SALE')} accent="bg-[#1e3a8a]" />
     <ListingStrip title="À louer" listings={rentListings} seconds={rotationSeconds} onOpen={setSelectedListing} onChat={chat} onSeeAll={() => seeAll('RENT')} accent="bg-[#16a34a]" />
-    <GenericStrip title="Marché de l’habitat" items={habitatItems} seconds={rotationSeconds} onOpen={() => showToast('Le Marché de l’habitat sera relié à son catalogue complet.', 'info')} accent="bg-[#16a34a]" />
     <GenericStrip title="Expériences" items={experienceItems} seconds={rotationSeconds} onOpen={() => showToast('La rubrique Expériences sera reliée à son catalogue complet.', 'info')} accent="bg-[#1e3a8a]" />
     <GenericStrip title="Magasins de meubles" items={furnitureItems} seconds={rotationSeconds} onOpen={() => setActiveNavTab('furniture_marketplace')} accent="bg-[#16a34a]" />
   </div>;
