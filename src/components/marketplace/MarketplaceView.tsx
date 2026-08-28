@@ -21,8 +21,8 @@ const experienceItems: ShowcaseItem[] = [
 ];
 
 const furnitureItems: ShowcaseItem[] = [
-  { id: 'furniture-1', title: 'Maison Élégance', subtitle: 'Salons, chambres et décoration', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80', badge: 'Magasin de meubles' },
-  { id: 'furniture-2', title: 'Congo Design Mobilier', subtitle: 'Mobilier contemporain et bureaux', image: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1200&q=80', badge: 'Magasin de meubles' },
+  { id: 'furniture-1', title: 'Maison Élégance', subtitle: 'Salons, chambres et décoration', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80', badge: 'Mobiliers' },
+  { id: 'furniture-2', title: 'Congo Design Mobilier', subtitle: 'Mobilier contemporain et bureaux', image: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1200&q=80', badge: 'Mobiliers' },
 ];
 
 const formatPrice = (price: number, currency: string) => new Intl.NumberFormat('fr-FR', {
@@ -125,12 +125,31 @@ export const MarketplaceView: React.FC = () => {
   };
 
   const categories = [
-    ['LAND', 'Terrains / Parcelles'], ['HOME', 'Maisons / Villas / Immeubles'], ['OFFICE', 'Bureaux'], ['COMMERCIAL', 'Commerces'], ['FURNITURE', 'Magasins de meubles'], ['OTHER', 'Autres'],
+    ['LAND', 'Terrains / Parcelles'],
+    ['HOME', 'Maisons / Villas / Immeubles'],
+    ['OFFICE', 'Bureaux'],
+    ['COMMERCIAL', 'Commerces'],
+    ['FURNITURE', 'Mobiliers'],
+    ['OTHER', 'Autres'],
   ];
 
   return <div className="space-y-5 pb-24 max-w-4xl mx-auto">
     <section className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-      <div className="p-5 sm:p-7"><h1 className="text-3xl sm:text-4xl font-black text-[#1e3a8a] tracking-tight">TROUVER LE BIEN IDÉAL</h1><div className="mt-5 space-y-1.5">{categories.map(([value, label]) => <button key={value} onClick={() => chooseCategory(value)} className="w-full flex items-center gap-2.5 py-2 text-left font-bold text-slate-700 hover:text-[#1e3a8a]"><span className="w-5 h-5 rounded-full bg-[#16a34a] flex items-center justify-center shrink-0"><CheckCircle2 className="w-3.5 h-3.5 text-white" /></span>{label}</button>)}</div></div>
+      <div className="p-4 sm:p-6">
+        <h1 className="text-2xl sm:text-3xl font-black text-[#1e3a8a] tracking-tight leading-tight">TROUVER LE BIEN IDÉAL</h1>
+        <div className="mt-3 space-y-0.5">
+          {categories.map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => chooseCategory(value)}
+              className="w-full flex items-center gap-2.5 py-1.5 text-left font-bold text-slate-700 hover:text-[#1e3a8a] min-h-9"
+            >
+              <span className="w-[18px] h-[18px] rounded-full bg-[#16a34a] flex items-center justify-center shrink-0"><CheckCircle2 className="w-3 h-3 text-white" /></span>
+              <span className="text-[15px] sm:text-base leading-tight">{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
       <button onClick={() => document.getElementById('home-search')?.scrollIntoView({ behavior: 'smooth' })} className="block w-full"><img src={heroImage} alt="Présentation ImmoSecureNet" className="w-full aspect-[16/8] object-cover" /></button>
     </section>
 
@@ -150,6 +169,6 @@ export const MarketplaceView: React.FC = () => {
     <ListingStrip title="À vendre" listings={saleListings} seconds={rotationSeconds} onOpen={setSelectedListing} onChat={chat} onCart={addToCart} onSeeAll={() => seeAll('SALE')} accent="bg-[#1e3a8a]" />
     <ListingStrip title="À louer" listings={rentListings} seconds={rotationSeconds} onOpen={setSelectedListing} onChat={chat} onSeeAll={() => seeAll('RENT')} accent="bg-[#16a34a]" />
     <GenericStrip title="Expériences" items={experienceItems} seconds={rotationSeconds} onOpen={() => showToast('La rubrique Expériences sera reliée à son catalogue complet.', 'info')} accent="bg-[#1e3a8a]" />
-    <GenericStrip title="Magasins de meubles" items={furnitureItems} seconds={rotationSeconds} onOpen={() => setActiveNavTab('furniture_marketplace')} accent="bg-[#16a34a]" />
+    <GenericStrip title="Mobiliers" items={furnitureItems} seconds={rotationSeconds} onOpen={() => setActiveNavTab('furniture_marketplace')} accent="bg-[#16a34a]" />
   </div>;
 };
