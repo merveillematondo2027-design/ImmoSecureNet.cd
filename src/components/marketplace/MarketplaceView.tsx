@@ -15,14 +15,12 @@ const DEFAULT_ROTATION_SECONDS = 6;
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=1600&q=85';
 
 const experienceItems: ShowcaseItem[] = [
-  { id: 'experience-1', title: 'Hôtels & séjours', subtitle: 'Lieux de séjour et de détente', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80', badge: 'Expérience' },
-  { id: 'experience-2', title: 'Restaurants', subtitle: 'Adresses et tables à découvrir', image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80', badge: 'Expérience' },
-  { id: 'experience-3', title: 'Parcs & loisirs', subtitle: 'Sorties, détente et activités', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80', badge: 'Expérience' },
+  { id: 'experience-1', title: 'Restaurants', subtitle: 'Adresses et tables à découvrir', image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80', badge: 'Expérience' },
+  { id: 'experience-2', title: 'Parcs & loisirs', subtitle: 'Sorties, détente et activités', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80', badge: 'Expérience' },
 ];
 
 const furnitureItems: ShowcaseItem[] = [
-  { id: 'furniture-1', title: 'Maison Élégance', subtitle: 'Salons, chambres et décoration', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80', badge: 'Mobiliers' },
-  { id: 'furniture-2', title: 'Congo Design Mobilier', subtitle: 'Mobilier contemporain et bureaux', image: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1200&q=80', badge: 'Mobiliers' },
+  { id: 'furniture-1', title: 'Mobiliers partenaires', subtitle: 'Magasins et équipements pour la maison', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80', badge: 'Mobiliers' },
 ];
 
 const formatPrice = (price: number, currency: string) => new Intl.NumberFormat('fr-FR', {
@@ -97,7 +95,7 @@ export const MarketplaceView: React.FC = () => {
 
   const filteredResults = useMemo(() => sortedListings.filter((listing) => {
     if (listing.listingType !== (intent === 'RENT' ? ListingType.RENT : ListingType.SALE)) return false;
-    const accepted: Record<string, PropertyType[]> = { LAND: [PropertyType.LAND], HOME: [PropertyType.HOUSE, PropertyType.VILLA, PropertyType.BUILDING, PropertyType.APARTMENT], OFFICE: [PropertyType.COMMERCIAL], COMMERCIAL: [PropertyType.COMMERCIAL] };
+    const accepted: Record<string, PropertyType[]> = { LAND: [PropertyType.LAND], HOME: [PropertyType.HOUSE, PropertyType.VILLA, PropertyType.BUILDING, PropertyType.APARTMENT], OFFICE: [PropertyType.COMMERCIAL] };
     if (propertyType && propertyType !== 'OTHER' && !accepted[propertyType]?.includes(listing.propertyType)) return false;
     const loc = `${listing.location.address} ${listing.location.city} ${listing.location.neighborhood} ${listing.location.country}`.toLowerCase();
     if (location.trim() && !loc.includes(location.toLowerCase())) return false;
@@ -109,7 +107,14 @@ export const MarketplaceView: React.FC = () => {
   }), [sortedListings, intent, propertyType, location, details, minPrice, maxPrice]);
 
   const search = (e: React.FormEvent) => { e.preventDefault(); setSearchSubmitted(true); setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth' }), 50); };
-  const chooseCategory = (value: string) => { if (value === 'FURNITURE') { setActiveNavTab('furniture_marketplace'); return; } setPropertyType(value); setSearchSubmitted(false); document.getElementById('home-search')?.scrollIntoView({ behavior: 'smooth' }); };
+  const chooseCategory = (value: string) => {
+    if (value === 'FURNITURE') { setActiveNavTab('furniture_marketplace'); return; }
+    if (value === 'HOTELS') { setActiveNavTab('hotel_partners'); return; }
+    if (value === 'INSURANCE') { showToast('Le service Assurance maison sera relié aux partenaires assureurs.', 'info'); return; }
+    setPropertyType(value);
+    setSearchSubmitted(false);
+    document.getElementById('home-search')?.scrollIntoView({ behavior: 'smooth' });
+  };
   const chat = (listing: Listing) => { sessionStorage.setItem('immosecure_pending_contact', JSON.stringify({ type: 'LISTING', listingId: listing.id, publisherId: listing.publishedBy.id, publisherName: listing.publishedBy.name, listingTitle: listing.title })); setActiveNavTab('messages'); };
   const seeAll = (nextIntent: Intent) => { setIntent(nextIntent); setSearchSubmitted(true); setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth' }), 50); };
   const addToCart = (listing: Listing) => {
@@ -128,8 +133,9 @@ export const MarketplaceView: React.FC = () => {
     ['LAND', 'Terrains / Parcelles'],
     ['HOME', 'Maisons / Villas / Immeubles'],
     ['OFFICE', 'Bureaux'],
-    ['COMMERCIAL', 'Commerces'],
+    ['INSURANCE', 'Assurance maison'],
     ['FURNITURE', 'Mobiliers'],
+    ['HOTELS', 'Hôtels'],
     ['OTHER', 'Autres'],
   ];
 
@@ -139,11 +145,7 @@ export const MarketplaceView: React.FC = () => {
         <h1 className="text-2xl sm:text-3xl font-black text-[#1e3a8a] tracking-tight leading-tight">TROUVER LE BIEN IDÉAL</h1>
         <div className="mt-3 space-y-0.5">
           {categories.map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => chooseCategory(value)}
-              className="w-full flex items-center gap-2.5 py-1.5 text-left font-bold text-slate-700 hover:text-[#1e3a8a] min-h-9"
-            >
+            <button key={value} onClick={() => chooseCategory(value)} className="w-full flex items-center gap-2.5 py-1.5 text-left font-bold text-slate-700 hover:text-[#1e3a8a] min-h-9">
               <span className="w-[18px] h-[18px] rounded-full bg-[#16a34a] flex items-center justify-center shrink-0"><CheckCircle2 className="w-3 h-3 text-white" /></span>
               <span className="text-[15px] sm:text-base leading-tight">{label}</span>
             </button>
@@ -156,7 +158,7 @@ export const MarketplaceView: React.FC = () => {
     <section id="home-search" className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm scroll-mt-24">
       <div className="grid grid-cols-2"><button onClick={() => setIntent('RENT')} className={`py-4 font-black ${intent === 'RENT' ? 'bg-[#16a34a] text-white' : 'bg-emerald-50 text-emerald-800'}`}>À LOUER</button><button onClick={() => setIntent('SALE')} className={`py-4 font-black ${intent === 'SALE' ? 'bg-[#1e3a8a] text-white' : 'bg-blue-50 text-blue-900'}`}>À VENDRE</button></div>
       <form onSubmit={search} className="p-4 space-y-3">
-        <div className="relative"><Building2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><select value={propertyType} onChange={(e) => setPropertyType(e.target.value)} className="w-full border border-slate-300 rounded-xl pl-9 pr-9 py-3 text-sm bg-white appearance-none"><option value="">Type de bien</option><option value="LAND">Terrains / Parcelles</option><option value="HOME">Maisons / Villas / Immeubles</option><option value="OFFICE">Bureaux</option><option value="COMMERCIAL">Commerces</option><option value="OTHER">Autres</option></select><ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /></div>
+        <div className="relative"><Building2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><select value={propertyType} onChange={(e) => setPropertyType(e.target.value)} className="w-full border border-slate-300 rounded-xl pl-9 pr-9 py-3 text-sm bg-white appearance-none"><option value="">Type de bien</option><option value="LAND">Terrains / Parcelles</option><option value="HOME">Maisons / Villas / Immeubles</option><option value="OFFICE">Bureaux</option><option value="OTHER">Autres</option></select><ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /></div>
         <div className="relative"><MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Localisation" className="w-full border border-slate-300 rounded-xl pl-9 pr-3 py-3 text-sm" /></div>
         <div className="relative"><SlidersHorizontal className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Plus de détails" className="w-full border border-slate-300 rounded-xl pl-9 pr-3 py-3 text-sm" /></div>
         <div className="grid grid-cols-2 gap-3"><div className="relative"><DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="Prix min" className="w-full border border-slate-300 rounded-xl pl-9 pr-2 py-3 text-sm" /></div><div className="relative"><DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Prix max" className="w-full border border-slate-300 rounded-xl pl-9 pr-2 py-3 text-sm" /></div></div>
