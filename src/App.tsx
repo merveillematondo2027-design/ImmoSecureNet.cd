@@ -6,6 +6,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { BottomNav } from './components/layout/BottomNav';
 import { MarketplaceView } from './components/marketplace/MarketplaceView';
 import { FurnitureMarketplaceView } from './components/furniture/FurnitureMarketplaceView';
+import { HotelPartnersView } from './components/hotels/HotelPartnersView';
 import { AgentDashboardView } from './components/agent/AgentDashboardView';
 import { OwnerPropertiesView } from './components/owner/OwnerPropertiesView';
 import { StateAuditorView } from './components/audit/StateAuditorView';
@@ -84,6 +85,7 @@ const MainAppContent: React.FC = () => {
     switch (activeNavTab) {
       case 'marketplace': return <MarketplaceView />;
       case 'furniture_marketplace': return <FurnitureMarketplaceView />;
+      case 'hotel_partners': return <HotelPartnersView />;
       case 'agent_dashboard': return <ProtectedModule title="Tableau de bord Agent" description="Connectez-vous pour accéder à ce module." onOpenAuth={handleOpenAuth}><AgentDashboardView /></ProtectedModule>;
       case 'owner_properties': return <ProtectedModule title="Mes Biens" description="Connectez-vous pour gérer votre patrimoine immobilier." onOpenAuth={handleOpenAuth}><OwnerPropertiesView /></ProtectedModule>;
       case 'audit': return <ProtectedModule title="Audit de l'État" description="Accès sécurisé pour l'audit." onOpenAuth={handleOpenAuth}><StateAuditorView /></ProtectedModule>;
