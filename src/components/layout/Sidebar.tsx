@@ -3,6 +3,7 @@ import {
   Home,
   Search,
   Store,
+  BedDouble,
   Heart,
   CalendarCheck,
   ShoppingCart,
@@ -33,6 +34,7 @@ export const Sidebar: React.FC = () => {
     { id: 'home', label: 'ACCUEIL', icon: Home, action: goHome },
     { id: 'search', label: 'CHERCHER', icon: Search, action: goSearch },
     { id: 'furniture', label: 'MOBILIERS', icon: Store, action: () => setActiveNavTab('furniture_marketplace') },
+    { id: 'hotels', label: 'HÔTELS', icon: BedDouble, action: () => setActiveNavTab('hotel_partners') },
     { id: 'favorites', label: 'FAVORIS', icon: Heart, action: () => openComingSection('Favoris') },
     { id: 'appointments', label: 'MES RENDEZ-VOUS', icon: CalendarCheck, action: () => openComingSection('Mes rendez-vous') },
     { id: 'cart', label: 'MON PANIER', icon: ShoppingCart, action: () => openComingSection('Mon panier') },
@@ -63,6 +65,7 @@ export const Sidebar: React.FC = () => {
           const isActive =
             (item.id === 'home' && activeNavTab === 'marketplace') ||
             (item.id === 'furniture' && activeNavTab === 'furniture_marketplace') ||
+            (item.id === 'hotels' && activeNavTab === 'hotel_partners') ||
             (item.id === 'account' && activeNavTab === 'menu');
 
           return (
