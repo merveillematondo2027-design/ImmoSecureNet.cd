@@ -110,6 +110,7 @@ export const MarketplaceView: React.FC = () => {
   const chooseCategory = (value: string) => {
     if (value === 'FURNITURE') { setActiveNavTab('furniture_marketplace'); return; }
     if (value === 'HOTELS') { setActiveNavTab('hotel_partners'); return; }
+    if (value === 'CONNECTIVITY') { setActiveNavTab('connectivity_partners'); return; }
     if (value === 'INSURANCE') { showToast('Le service Assurance maison sera relié aux partenaires assureurs.', 'info'); return; }
     setPropertyType(value);
     setSearchSubmitted(false);
@@ -136,7 +137,7 @@ export const MarketplaceView: React.FC = () => {
     ['INSURANCE', 'Assurance maison'],
     ['FURNITURE', 'Mobiliers'],
     ['HOTELS', 'Hôtels'],
-    ['OTHER', 'Autres'],
+    ['CONNECTIVITY', 'Compagnies aériennes & connectivité'],
   ];
 
   return <div className="space-y-5 pb-24 max-w-4xl mx-auto">
