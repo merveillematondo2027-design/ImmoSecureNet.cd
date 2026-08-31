@@ -1,150 +1,119 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.email == 'merveillematondo2027@gmail.com' ||
-        request.auth.token.admin == true
-      );
-    }
+    function signedIn() { return request.auth != null; }
+    function mainAdmin() { return signedIn() && request.auth.token.email == 'merveillematondo2027@gmail.com'; }
+    function admin() { return mainAdmin() || (signedIn() && request.auth.token.admin == true); }
+    function userData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function role() { return signedIn() ? userData().role : null; }
+    function professional() { return signedIn() && role() in ['AGENT', 'AGENCY', 'OWNER']; }
+    function auditor() { return signedIn() && role() == 'STATE_AUDITOR'; }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-    
-    function getUserRole() {
-      return getUserData().role;
-    }
-
-    function isStateAuditor() {
-      return isAuthenticated() && getUserRole() == 'STATE_AUDITOR';
-    }
-
-    function hasRole(roles) {
-      return isAuthenticated() && (getUserRole() in roles);
-    }
-
-    // users collection
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      // Allow create only if they match their UID. The role cannot be set to admin_general directly unless by admin.
-      allow create: if isAuthenticated() && request.auth.uid == userId && request.resource.data.role != 'admin_general';
-      // User can update their own non-sensitive fields
-      allow update: if isAuthenticated() && (
-        isAdmin() || 
-        (request.auth.uid == userId && 
-         !request.resource.data.diff(resource.data).affectedKeys()
-         .hasAny(['role', 'verificationStatus', 'permissions', 'isAdmin']))
-      );
-      allow delete: if isAdmin();
+      allow read: if signedIn() && (request.auth.uid == userId || admin());
+      allow create: if signedIn() && request.auth.uid == userId && (request.resource.data.role == 'client' || admin());
+      allow update: if admin() || (signedIn() && request.auth.uid == userId &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'verificationStatus', 'permissions', 'isAdmin']));
+      allow delete: if admin();
     }
 
-    // roles & permissions
-    match /roles/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    match /permissions/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // accessRequests
     match /accessRequests/{requestId} {
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAdmin();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if admin();
     }
 
-    // properties
+    match /listings/{listingId} {
+      allow read: if resource.data.status == 'ACTIVE' || admin() || (signedIn() && resource.data.publishedBy.id == request.auth.uid);
+      allow create: if professional() && request.resource.data.publishedBy.id == request.auth.uid;
+      allow update: if admin() || (signedIn() && resource.data.publishedBy.id == request.auth.uid);
+      allow delete: if admin() || (signedIn() && resource.data.publishedBy.id == request.auth.uid);
+    }
+
     match /properties/{propertyId} {
       allow read: if true;
-      allow create: if hasRole(['OWNER', 'AGENT', 'AGENCY']) || isAdmin();
-      allow update: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || resource.data.agentId == request.auth.uid || isAdmin() || isStateAuditor());
-      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if professional() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if admin() || auditor() || (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow delete: if admin() || (signedIn() && resource.data.ownerId == request.auth.uid);
     }
 
-    // conversations
+    match /favorites/{favoriteId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || admin());
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if signedIn() && (resource.data.userId == request.auth.uid || admin());
+    }
+
+    match /carts/{cartId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || admin());
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if signedIn() && (resource.data.userId == request.auth.uid || admin());
+    }
+
+    match /visitRequests/{requestId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update: if admin() || (signedIn() && (resource.data.userId == request.auth.uid || resource.data.agentId == request.auth.uid));
+      allow delete: if admin();
+    }
+
     match /conversations/{conversationId} {
-      allow read, update: if isAuthenticated() && (request.auth.uid in resource.data.participantIds || isAdmin());
-      allow create: if isAuthenticated() && (request.auth.uid in request.resource.data.participantIds || isAdmin());
-      allow delete: if isAdmin();
-      
+      allow create: if signedIn() && request.auth.uid in request.resource.data.participantIds;
+      allow read, update: if admin() || (signedIn() && request.auth.uid in resource.data.participantIds);
+      allow delete: if admin();
+
       match /messages/{messageId} {
-        allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds || isAdmin());
-        allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid && (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
-        allow update, delete: if isAdmin();
+        allow read: if admin() || (signedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
+        allow create: if signedIn() && request.resource.data.senderId == request.auth.uid && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        allow update: if admin() || (signedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
+        allow delete: if admin();
       }
     }
 
-    // notifications
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAdmin() || hasRole(['STATE_AUDITOR']);
-      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-    }
-
-    // favorites
-    match /favorites/{favoriteId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-    }
-
-    // visitRequests
-    match /visitRequests/{requestId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.agentId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.agentId == request.auth.uid || isAdmin());
-    }
-
-    // journal
-    match /journal/{journalId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAdmin();
-    }
-
-    // transactions
-    match /transactions/{transactionId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create, update, delete: if isAdmin();
-    }
-
-    // dailyReports
-    match /dailyReports/{reportId} {
-      allow read, create, update, delete: if isAdmin();
-    }
-
-    // auditLogs
-    match /auditLogs/{logId} {
-      allow read: if isAdmin() || hasRole(['STATE_AUDITOR']);
-      allow create: if isAuthenticated() && request.resource.data.actorId == request.auth.uid;
-      allow update, delete: if false; // Audit logs are immutable
-    }
-
-    // appSettings
-    match /appSettings/{settingId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // Fallbacks for specific existing collections
-    match /sponsoredAds/{adId} {
-      allow read: if true;
-      allow create, update: if hasRole(['ADMIN', 'AGENT', 'AGENCY']);
-      allow delete: if isAdmin();
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || admin());
+      allow create: if admin() || auditor() || professional();
+      allow update, delete: if signedIn() && (resource.data.userId == request.auth.uid || admin());
     }
 
     match /inquiries/{inquiryId} {
-      allow read: if isAuthenticated() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.senderId == request.auth.uid;
+      allow read, update: if admin() || (signedIn() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid));
+      allow delete: if admin();
+    }
+
+    match /journal/{journalId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if admin();
+    }
+
+    match /auditLogs/{logId} {
+      allow create: if signedIn() && request.resource.data.actorId == request.auth.uid;
+      allow read: if admin() || auditor();
+      allow update, delete: if false;
+    }
+
+    match /sponsoredAds/{adId} {
+      allow read: if true;
+      allow create, update, delete: if admin();
+    }
+
+    match /appSettings/{settingId} {
+      allow read: if true;
+      allow write: if admin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if admin();
+    }
+
+    match /dailyReports/{reportId} {
+      allow read, write: if admin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
