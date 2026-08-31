@@ -1,15 +1,21 @@
 {
-  "name": "react-example",
+  "name": "immosecurenet",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
+    "dev:web": "vite",
+    "build:web": "vite build",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "firebase:login": "npx firebase-tools login",
+    "deploy:hosting": "npm run build:web && npx firebase-tools deploy --only hosting",
+    "deploy:rules": "npx firebase-tools deploy --only firestore:rules,storage",
+    "deploy:firebase": "npm run build:web && npx firebase-tools deploy --only hosting,firestore:rules,storage"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
