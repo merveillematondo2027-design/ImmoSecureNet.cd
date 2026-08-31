@@ -1,39 +1,85 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    function isAuthenticated() {
+    function signedIn() {
       return request.auth != null;
     }
-    
-    function isAdmin() {
-      return isAuthenticated() && (
+
+    function admin() {
+      return signedIn() && (
         request.auth.token.email == 'merveillematondo2027@gmail.com' ||
         request.auth.token.admin == true
       );
     }
 
+    function owner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function validImage() {
+      return request.resource != null
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    function validDocument() {
+      return request.resource != null
+        && request.resource.size <= 15 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('image/.*') ||
+          request.resource.contentType == 'application/pdf'
+        );
+    }
+
+    match /avatars/{userId}/{fileName} {
+      allow read: if true;
+      allow create, update: if (owner(userId) || admin()) && validImage();
+      allow delete: if owner(userId) || admin();
+    }
+
     match /users/{userId}/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow read: if owner(userId) || admin();
+      allow create, update: if (owner(userId) || admin()) && request.resource.size <= 15 * 1024 * 1024;
+      allow delete: if owner(userId) || admin();
     }
-    
-    match /avatars/{userId}/{allPaths=**} {
+
+    match /identityDocuments/{userId}/{fileName} {
+      allow read: if owner(userId) || admin();
+      allow create, update: if (owner(userId) || admin()) && validDocument();
+      allow delete: if admin();
+    }
+
+    match /properties/{propertyId}/{fileName} {
       allow read: if true;
-      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create, update: if signedIn()
+        && validImage()
+        && (
+          admin() ||
+          firestore.get(/databases/(default)/documents/properties/$(propertyId)).data.ownerId == request.auth.uid
+        );
+      allow delete: if signedIn() && (
+        admin() ||
+        firestore.get(/databases/(default)/documents/properties/$(propertyId)).data.ownerId == request.auth.uid
+      );
     }
-    
-    match /identityDocuments/{userId}/{allPaths=**} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+
+    match /messageAttachments/{conversationId}/{userId}/{fileName} {
+      allow read: if signedIn()
+        && request.auth.uid in firestore.get(/databases/(default)/documents/conversations/$(conversationId)).data.participantIds;
+      allow create: if owner(userId)
+        && request.resource.size <= 15 * 1024 * 1024
+        && request.auth.uid in firestore.get(/databases/(default)/documents/conversations/$(conversationId)).data.participantIds;
+      allow update: if false;
+      allow delete: if owner(userId) || admin();
     }
-    
-    match /properties/{propertyId}/{allPaths=**} {
+
+    match /branding/{fileName} {
       allow read: if true;
-      allow write: if isAuthenticated(); // More granular permissions could be based on DB, but this works for basic validation
+      allow write: if admin() && validImage();
     }
-    
+
     match /{allPaths=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if false;
     }
   }
 }
