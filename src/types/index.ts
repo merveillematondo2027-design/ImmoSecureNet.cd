@@ -120,30 +120,9 @@ export interface Property {
   documents: PropertyDocument[];
   createdAt: string;
   updatedAt: string;
-  taxComplianceStatus?: string;
-  hasLitigationFlag?: boolean;
-}
-
-export interface ListingPublisher {
-  id: string;
-  name: string;
-  role: UserRole;
-  avatarUrl?: string;
-  companyName?: string;
-  isVerified: boolean;
-  phone?: string;
-  email?: string;
-}
-
-export interface ListingLocation {
-  address: string;
-  city: string;
-  neighborhood: string;
-  country: string;
-  province?: string;
-  commune?: string;
-  latitude?: number;
-  longitude?: number;
+  taxComplianceStatus: 'CONFORME' | 'EN_COURS' | 'NON_CONFORME';
+  hasLitigationFlag: boolean;
+  notes?: string;
 }
 
 export interface Listing {
@@ -155,61 +134,37 @@ export interface Listing {
   listingType: ListingType;
   propertyType: PropertyType;
   price: number;
-  currency: string;
-  location: ListingLocation;
-  surface: number;
+  currency: 'USD' | 'EUR' | 'XAF' | 'FCFA';
+  location: {
+    address: string;
+    city: string;
+    neighborhood: string;
+    country: string;
+    coordinates?: { lat: number; lng: number };
+  };
+  surface: number; // m²
   bedrooms: number;
   bathrooms: number;
-  features: string[];
+  features: string[]; // e.g. ['Piscine', 'Sécurité 24/7', 'Groupe électrogène', 'Vue panoramique', 'Parking 2 véhicules', 'Climatisation']
   mainPhoto: string;
   galleryPhotos: string[];
   status: ListingStatus;
-  publishedBy: ListingPublisher;
+  publishedBy: {
+    id: string;
+    name: string;
+    role: UserRole;
+    avatarUrl?: string;
+    companyName?: string;
+    isVerified: boolean;
+    phone: string;
+    email: string;
+  };
   viewsCount: number;
   inquiriesCount: number;
-  isFeatured: boolean;
+  isFeatured?: boolean;
   publishedAt: string;
   updatedAt: string;
-}
-
-export interface SponsoredAd {
-  id: string;
-  title: string;
-  description?: string;
-  imageUrl?: string;
-  targetUrl?: string;
-  isActive: boolean;
-  clicks?: number;
-  impressions?: number;
-  createdAt?: string;
-}
-
-export interface StateAuditLog {
-  id: string;
-  kind?: string;
-  actorId?: string;
-  actorName?: string;
-  resourceType: string;
-  resourceId: string;
-  resourceIdentifier: string;
-  action: string;
-  justification: string;
-  verdict: string;
-  timestamp: string;
-}
-
-export interface DeveloperLog {
-  id: string;
-  kind?: string;
-  level: LogLevel;
-  module: string;
-  message: string;
-  details?: Record<string, unknown> | string;
-  timestamp: string;
-  userId?: string;
-  ipAddress?: string;
-  statusCode?: number;
-  durationMs?: number;
+  virtualTourUrl?: string;
 }
 
 export interface JournalEntry {
@@ -219,10 +174,43 @@ export interface JournalEntry {
   userRole: UserRole;
   action: string;
   details: string;
-  category: 'AUTH' | 'PROPERTY' | 'LISTING' | 'AUDIT' | 'ACCOUNT' | string;
+  category: 'AUTH' | 'PROPERTY' | 'LISTING' | 'DOCUMENT' | 'AUDIT' | 'MESSAGE' | 'SECURITY';
   timestamp: string;
-  ipAddress?: string;
-  device?: string;
+  ipAddress: string;
+  device: string;
+}
+
+export interface StateAuditLog {
+  id: string;
+  auditorId: string;
+  auditorName: string;
+  auditorDepartment: string;
+  action: 'CONSULTATION_DOSSIER' | 'VERIFICATION_CADASTRE' | 'VERIFICATION_DOCUMENT' | 'SIGNALEMENT_ANOMALIE' | 'VALIDATION_TITRE' | 'EXPORT_RAPPORT';
+  resourceType: 'PROPERTY' | 'LISTING' | 'DOCUMENT' | 'USER' | 'AGENCY';
+  resourceId: string;
+  resourceIdentifier: string; // e.g. "CAD-2026-KIN-0894 - Villa La Palmeraie"
+  justification: string; // Obligatoire pour accès aux données sensibles
+  targetCadastralRef?: string;
+  reason?: string;
+  notes?: string;
+  verdict: 'CONFORME' | 'ANOMALIE_SUSPECTE' | 'DOCUMENT_REQUIS' | 'CERTIFIE_AUTHENTIQUE' | 'SOUS_ENQUETE';
+  timestamp: string;
+  ipAddress: string;
+  device: string;
+}
+
+export interface DeveloperLog {
+  id: string;
+  level: LogLevel;
+  module: 'AUTH_SERVICE' | 'RBAC_SECURITY' | 'MARKETPLACE_API' | 'CADASTRE_SYNC' | 'DOC_VAULT' | 'WEBSOCKET_PUSH' | 'SPONSOR_ENGINE';
+  message: string;
+  details?: Record<string, unknown> | string;
+  timestamp: string;
+  userId?: string;
+  ipAddress: string;
+  statusCode?: number;
+  durationMs?: number;
+  stackTrace?: string;
 }
 
 export interface NotificationItem {
@@ -230,55 +218,71 @@ export interface NotificationItem {
   userId: string;
   title: string;
   message: string;
+  type: 'ACCOUNT' | 'SECURITY' | 'LISTING' | 'MESSAGE' | 'VALIDATION' | 'VERIFICATION' | 'AUDIT' | 'SYSTEM';
   isRead: boolean;
   createdAt: string;
-  type?: string;
-}
-
-export interface ConversationParticipant {
-  id: string;
-  name: string;
-  role: UserRole;
-  avatarUrl?: string;
-  isVerified?: boolean;
-}
-
-export interface Conversation {
-  id: string;
-  participantIds: string[];
-  participants: ConversationParticipant[];
-  propertyListingId?: string | null;
-  propertyTitle?: string;
-  propertyContext?: any;
-  lastMessage?: string;
-  lastMessageAt?: string;
-  lastMessageTimestamp?: string;
-  createdAt?: string;
+  link?: string;
 }
 
 export interface ChatMessage {
   id: string;
-  conversationId?: string;
+  conversationId: string;
   senderId: string;
-  senderName?: string;
-  text?: string;
-  content?: string;
+  senderName: string;
+  senderAvatar?: string;
+  senderRole: UserRole;
+  text: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
   timestamp: string;
   isRead: boolean;
-  readAt?: string;
+}
+
+export interface Conversation {
+  id: string;
+  participants: {
+    id: string;
+    name: string;
+    role: UserRole;
+    avatarUrl?: string;
+    isVerified?: boolean;
+  }[];
+  lastMessage?: string;
+  lastMessageTimestamp?: string;
+  lastMessageAt?: string;
+  unreadCount: number;
+  propertyListingId?: string;
+  propertyContext?: { title: string; price: number; listingId: string; };
+  messages?: any[];
+  propertyTitle?: string;
+}
+
+export interface SponsoredAd {
+  id: string;
+  title: string;
+  tagline: string;
+  description: string;
+  imageUrl: string;
+  targetUrl: string;
+  sponsorName: string;
+  sponsorBadge: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  impressionsCount: number;
+  clicksCount: number;
+  position: 'TOP_BANNER' | 'MARKETPLACE_CARD' | 'SIDEBAR';
 }
 
 export interface PropertyInquiry {
   id: string;
   listingId: string;
-  listingTitle?: string;
-  senderId: string;
-  receiverId?: string;
-  senderName?: string;
-  senderEmail?: string;
-  senderPhone?: string;
+  listingTitle: string;
+  senderName: string;
+  senderEmail: string;
+  senderPhone: string;
   message: string;
-  inquiryType?: string;
+  inquiryType: 'VISIT_REQUEST' | 'PRICE_INFO' | 'LEGAL_DOCS' | 'FINANCING' | 'GENERAL';
+  status: 'NEW' | 'CONTACTED' | 'SCHEDULED' | 'CLOSED';
   createdAt: string;
-  status?: string;
 }
