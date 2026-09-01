@@ -58,6 +58,32 @@ service cloud.firestore {
       );
     }
 
+    match /feedLikes/{likeId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.postId is string;
+      allow update: if false;
+      allow delete: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    match /feedComments/{commentId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.postId is string
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000;
+      allow update: if admin() || (
+        signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.postId == resource.data.postId
+      );
+      allow delete: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
+    }
+
     match /properties/{propertyId} {
       allow read: if true;
       allow create: if admin() || (
