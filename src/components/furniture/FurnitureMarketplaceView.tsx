@@ -31,7 +31,7 @@ export const FurnitureMarketplaceView: React.FC = () => {
   return (
     <div className="pb-24 max-w-3xl mx-auto space-y-4">
       <section className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
-        <h1 className="text-2xl font-black text-[#1e3a8a]">Mobiliers</h1>
+        <h1 className="text-2xl font-black text-[#1e3a8a]">I-SHOP</h1>
         <p className="text-sm text-slate-500 mt-1">Touchez le logo d’un partenaire pour ouvrir directement sa page officielle.</p>
       </section>
 
