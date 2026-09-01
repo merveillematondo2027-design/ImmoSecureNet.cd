@@ -58,6 +58,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Firestore rejects every `undefined` value, including optional nested fields.
+// JSON serialization safely removes them from the plain profile objects we store.
+const firestoreSafe = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
 const permissionsForRole = (role: UserRole): string[] => {
   if (role === UserRole.ADMIN) return ['ALL_ACCESS'];
   if (role === UserRole.AGENT || role === UserRole.AGENCY) {
@@ -65,6 +69,9 @@ const permissionsForRole = (role: UserRole): string[] => {
   }
   if (role === UserRole.OWNER) {
     return ['VIEW_MARKETPLACE', 'CREATE_PROPERTY', 'CREATE_LISTING', 'MANAGE_OWN_PROPERTIES', 'USE_MESSAGES'];
+  }
+  if (role === UserRole.SELLER) {
+    return ['VIEW_MARKETPLACE', 'USE_MESSAGES', 'MANAGE_STORE'];
   }
   if (role === UserRole.STATE_AUDITOR) return ['VIEW_MARKETPLACE', 'STATE_AUDIT'];
   return ['VIEW_MARKETPLACE', 'USE_MESSAGES'];
@@ -74,7 +81,8 @@ const normalizeProfile = (firebaseUser: any, existing?: Partial<User>): User => 
   const email = String(firebaseUser?.email || existing?.email || '').trim().toLowerCase();
   const isAdmin = email === ADMIN_EMAIL;
   const role = isAdmin ? UserRole.ADMIN : (existing?.role || UserRole.USER);
-  return {
+
+  return firestoreSafe({
     id: firebaseUser.uid,
     email,
     fullName: existing?.fullName || firebaseUser.displayName || (isAdmin ? 'Administrateur Général' : 'Utilisateur'),
@@ -91,7 +99,7 @@ const normalizeProfile = (firebaseUser: any, existing?: Partial<User>): User => 
     lastLoginAt: new Date().toISOString(),
     permissions: isAdmin ? ['ALL_ACCESS'] : (existing?.permissions?.length ? existing.permissions : permissionsForRole(role)),
     isTwoFactorEnabled: existing?.isTwoFactorEnabled,
-  };
+  } as User);
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -115,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const snap = await getDoc(userRef);
         const existing = snap.exists() ? (snap.data() as Partial<User>) : undefined;
         const profile = normalizeProfile(firebaseUser, existing);
-        await setDoc(userRef, profile, { merge: true });
+        await setDoc(userRef, firestoreSafe(profile), { merge: true });
         setCurrentUser(profile);
         setToken(await firebaseUser.getIdToken(true));
       } catch (error) {
@@ -131,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userRef = doc(db, 'users', currentUser.id);
     return onSnapshot(userRef, (snap) => {
       if (snap.exists()) setCurrentUser(snap.data() as User);
-    });
+    }, (error) => console.error('Lecture du profil refusée:', error));
   }, [currentUser?.id]);
 
   useEffect(() => {
@@ -139,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (currentUser.role === UserRole.ADMIN) {
       return onSnapshot(collection(db, 'users'), (snap) => {
         setAllUsers(snap.docs.map((d) => d.data() as User));
-      });
+      }, (error) => console.error('Lecture des utilisateurs refusée:', error));
     }
     setAllUsers([currentUser]);
   }, [currentUser?.id, currentUser?.role]);
@@ -151,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       : query(collection(db, 'accessRequests'), where('userId', '==', currentUser.id));
     return onSnapshot(requestsQuery, (snap) => {
       setAccessRequests(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<AccessRequest, 'id'>) })));
-    });
+    }, (error) => console.error('Lecture des demandes professionnelles refusée:', error));
   }, [currentUser?.id, currentUser?.role]);
 
   const login = async (email: string, password?: string): Promise<ActionResult> => {
@@ -172,7 +180,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userRef = doc(db, 'users', firebaseUser.uid);
       const snap = await getDoc(userRef);
       const profile = normalizeProfile(firebaseUser, snap.exists() ? (snap.data() as Partial<User>) : { role: UserRole.USER });
-      await setDoc(userRef, profile, { merge: true });
+      await setDoc(userRef, firestoreSafe(profile), { merge: true });
       setCurrentUser(profile);
       return { success: true, isNewUser: !snap.exists(), firebaseUser };
     } catch (error: any) {
@@ -192,7 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verificationStatus: VerificationStatus.VERIFIED,
         permissions: permissionsForRole(email === ADMIN_EMAIL ? UserRole.ADMIN : UserRole.USER),
       });
-      await setDoc(doc(db, 'users', credential.user.uid), profile);
+      await setDoc(doc(db, 'users', credential.user.uid), firestoreSafe(profile));
       setCurrentUser(profile);
       return { success: true };
     } catch (error: any) {
@@ -208,7 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!firebaseUser) return { success: false, error: 'Utilisateur Google introuvable.' };
     try {
       const profile = normalizeProfile(firebaseUser, { ...userData, role: UserRole.USER, verificationStatus: VerificationStatus.VERIFIED });
-      await setDoc(doc(db, 'users', firebaseUser.uid), profile, { merge: true });
+      await setDoc(doc(db, 'users', firebaseUser.uid), firestoreSafe(profile), { merge: true });
       setCurrentUser(profile);
       return { success: true };
     } catch (error) {
@@ -219,12 +227,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const requestProfessionalRole = async (role: UserRole): Promise<ActionResult> => {
     if (!currentUser) return { success: false, error: 'Connectez-vous d’abord.' };
-    if (![UserRole.AGENT, UserRole.AGENCY, UserRole.OWNER].includes(role)) {
+    if (![UserRole.AGENT, UserRole.AGENCY, UserRole.OWNER, UserRole.SELLER].includes(role)) {
       return { success: false, error: 'Type de compte professionnel invalide.' };
     }
     try {
       const requestId = `${currentUser.id}-${role}`;
-      await setDoc(doc(db, 'accessRequests', requestId), {
+      await setDoc(doc(db, 'accessRequests', requestId), firestoreSafe({
         id: requestId,
         userId: currentUser.id,
         email: currentUser.email,
@@ -232,7 +240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         requestedRole: role,
         status: 'pending',
         createdAt: new Date().toISOString(),
-      }, { merge: true });
+      }), { merge: true });
       return { success: true };
     } catch (error) {
       console.error(error);
@@ -244,22 +252,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateProfile = (updatedData: Partial<User>) => {
     if (!currentUser) return;
-    const safe: Partial<User> = {
+    const safe: Partial<User> = firestoreSafe({
       fullName: updatedData.fullName ?? currentUser.fullName,
       phone: updatedData.phone ?? currentUser.phone,
       avatarUrl: updatedData.avatarUrl ?? currentUser.avatarUrl,
       companyName: updatedData.companyName ?? currentUser.companyName,
-    };
+    });
     void setDoc(doc(db, 'users', currentUser.id), safe, { merge: true });
   };
 
   const updateUserRole = (id: string, role: UserRole) => {
     if (currentUser?.role !== UserRole.ADMIN) return;
-    void setDoc(doc(db, 'users', id), {
+    void setDoc(doc(db, 'users', id), firestoreSafe({
       role,
       permissions: permissionsForRole(role),
       verificationStatus: VerificationStatus.VERIFIED,
-    }, { merge: true });
+    }), { merge: true });
   };
 
   const updateUserStatus = (id: string, status: VerificationStatus) => {
@@ -275,11 +283,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!snap.exists()) return;
       const request = snap.data() as AccessRequest;
       if (status === 'approved') {
-        await setDoc(doc(db, 'users', request.userId), {
+        await setDoc(doc(db, 'users', request.userId), firestoreSafe({
           role: request.requestedRole,
           verificationStatus: VerificationStatus.VERIFIED,
           permissions: permissionsForRole(request.requestedRole),
-        }, { merge: true });
+        }), { merge: true });
       }
       await updateDoc(ref, { status, processedAt: new Date().toISOString() });
     })();
