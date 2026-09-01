@@ -18,6 +18,7 @@ import { JournalView } from './components/journal/JournalView';
 import { MessagingView } from './components/messaging/MessagingView';
 import { NotificationsView } from './components/notifications/NotificationsView';
 import { UserMenuView } from './components/menu/UserMenuView';
+import { InformationView } from './components/menu/InformationView';
 import { AuthModal } from './components/auth/AuthModal';
 import { PropertyDetailModal } from './components/property/PropertyDetailModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -47,6 +48,11 @@ const MainAppContent: React.FC = () => {
       case 'furniture_marketplace': return <FurnitureMarketplaceView />;
       case 'hotel_partners': return <HotelPartnersView />;
       case 'connectivity_partners': return <ConnectivityPartnersView />;
+      case 'accounts': case 'menu': return <UserMenuView onOpenAuth={handleOpenAuth} />;
+      case 'services': return <InformationView kind="services" />;
+      case 'about': return <InformationView kind="about" />;
+      case 'contact': return <InformationView kind="contact" />;
+      case 'settings': return <InformationView kind="settings" />;
       case 'agent_dashboard': return <ProtectedModule title="Tableau de bord Agent" description="Connectez-vous pour accéder à ce module." onOpenAuth={handleOpenAuth}><AgentDashboardView /></ProtectedModule>;
       case 'owner_properties': return <ProtectedModule title="Mes Biens" description="Connectez-vous pour gérer votre patrimoine immobilier." onOpenAuth={handleOpenAuth}><OwnerPropertiesView /></ProtectedModule>;
       case 'audit': return <ProtectedModule title="Audit de l'État" description="Accès sécurisé pour l'audit." onOpenAuth={handleOpenAuth}><StateAuditorView /></ProtectedModule>;
@@ -56,7 +62,6 @@ const MainAppContent: React.FC = () => {
       case 'journal': return <JournalView />;
       case 'messages': return <ProtectedModule title="Connectez-vous pour accéder à vos messages" description="Vous devez être connecté pour utiliser la messagerie ImmoSecureNet." onOpenAuth={handleOpenAuth}><MessagingView /></ProtectedModule>;
       case 'notifications': return <ProtectedModule title="Connectez-vous pour accéder à vos notifications" description="Vous devez être connecté pour voir vos alertes." onOpenAuth={handleOpenAuth}><NotificationsView /></ProtectedModule>;
-      case 'menu': return <UserMenuView onOpenAuth={handleOpenAuth} />;
       default: return <MarketplaceView />;
     }
   };
