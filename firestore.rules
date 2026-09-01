@@ -27,7 +27,7 @@ service cloud.firestore {
     match /accessRequests/{requestId} {
       allow create: if signedIn()
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.requestedRole in ['AGENT', 'AGENCY', 'OWNER']
+        && request.resource.data.requestedRole in ['AGENT', 'AGENCY', 'OWNER', 'SELLER']
         && request.resource.data.status == 'pending';
       allow read: if admin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow update, delete: if admin();
