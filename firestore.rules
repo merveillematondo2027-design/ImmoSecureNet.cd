@@ -37,25 +37,78 @@ service cloud.firestore {
       allow read: if resource.data.status == 'ACTIVE'
         || admin()
         || (signedIn() && resource.data.publishedBy.id == request.auth.uid);
-
       allow create: if admin() || (
         professional()
         && request.resource.data.publishedBy.id == request.auth.uid
         && request.resource.data.status == 'PENDING_REVIEW'
       );
-
       allow update: if admin() || (
         signedIn()
         && resource.data.publishedBy.id == request.auth.uid
         && request.resource.data.publishedBy.id == resource.data.publishedBy.id
         && request.resource.data.status == resource.data.status
       );
-
       allow delete: if admin() || (
         signedIn()
         && resource.data.publishedBy.id == request.auth.uid
         && resource.data.status != 'ACTIVE'
       );
+    }
+
+    // Collections finales distinctes afin que location et vente puissent évoluer séparément.
+    match /rentalProperties/{propertyId} {
+      allow read: if resource.data.status == 'ACTIVE'
+        || admin()
+        || (signedIn() && resource.data.publishedBy.id == request.auth.uid);
+      allow create: if admin() || (
+        professional()
+        && request.resource.data.publishedBy.id == request.auth.uid
+        && request.resource.data.status == 'PENDING_REVIEW'
+      );
+      allow update: if admin() || (
+        signedIn()
+        && resource.data.publishedBy.id == request.auth.uid
+        && request.resource.data.publishedBy.id == resource.data.publishedBy.id
+        && request.resource.data.status == resource.data.status
+      );
+      allow delete: if admin() || (
+        signedIn()
+        && resource.data.publishedBy.id == request.auth.uid
+        && resource.data.status != 'ACTIVE'
+      );
+    }
+
+    match /saleProperties/{propertyId} {
+      allow read: if resource.data.status == 'ACTIVE'
+        || admin()
+        || (signedIn() && resource.data.publishedBy.id == request.auth.uid);
+      allow create: if admin() || (
+        professional()
+        && request.resource.data.publishedBy.id == request.auth.uid
+        && request.resource.data.status == 'PENDING_REVIEW'
+      );
+      allow update: if admin() || (
+        signedIn()
+        && resource.data.publishedBy.id == request.auth.uid
+        && request.resource.data.publishedBy.id == resource.data.publishedBy.id
+        && request.resource.data.status == resource.data.status
+      );
+      allow delete: if admin() || (
+        signedIn()
+        && resource.data.publishedBy.id == request.auth.uid
+        && resource.data.status != 'ACTIVE'
+      );
+    }
+
+    // Référentiels publics : taxonomie immobilière et géographie RDC.
+    match /propertyTypes/{document=**} {
+      allow read: if true;
+      allow write: if admin();
+    }
+
+    match /locations/{document=**} {
+      allow read: if true;
+      allow write: if admin();
     }
 
     match /feedLikes/{likeId} {
