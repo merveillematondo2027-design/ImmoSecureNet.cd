@@ -17,6 +17,7 @@ import {
   LogLevel,
   UserRole,
 } from '../types';
+import { PropertyTypeKey } from '../data/propertyCatalog';
 import { useAuth } from './AuthContext';
 import { db } from '../firebase';
 import {
@@ -122,6 +123,57 @@ const mergeById = <T extends { id: string }>(...groups: T[][]): T[] => {
   return Array.from(map.values());
 };
 
+const catalogKeyFromLegacy = (type?: PropertyType): PropertyTypeKey => {
+  if (type === PropertyType.LAND) return 'landParcel';
+  if (type === PropertyType.VILLA) return 'villa';
+  if (type === PropertyType.HOUSE) return 'house';
+  if (type === PropertyType.BUILDING) return 'apartmentBuilding';
+  if (type === PropertyType.COMMERCIAL) return 'commercialHouse';
+  return 'apartment';
+};
+
+const legacyTypeFromCatalog = (value: unknown): PropertyType => {
+  const key = String(value || 'apartment');
+  if (Object.values(PropertyType).includes(key as PropertyType)) return key as PropertyType;
+  if (key === 'landParcel') return PropertyType.LAND;
+  if (key === 'villa') return PropertyType.VILLA;
+  if (key === 'apartmentBuilding') return PropertyType.BUILDING;
+  if (['office', 'commercialHouse', 'factory', 'industrialPremises', 'storageSpace'].includes(key)) return PropertyType.COMMERCIAL;
+  if (['house', 'furnishedResidence', 'hostel'].includes(key)) return PropertyType.HOUSE;
+  return PropertyType.APARTMENT;
+};
+
+const normalizeListing = (id: string, data: any, forcedType?: ListingType): Listing => {
+  const listingType = forcedType || data.listingType || (data.transactionType === 'rental' ? ListingType.RENT : ListingType.SALE);
+  const propertyTypeKey = Object.values(PropertyType).includes(data.propertyType)
+    ? catalogKeyFromLegacy(data.propertyType)
+    : String(data.propertyType || data.propertyTypeKey || 'apartment') as PropertyTypeKey;
+  const details = data.propertyDetails || {};
+  const location = data.location || { address: '', city: '', neighborhood: '', country: 'RD Congo' };
+  return {
+    ...data,
+    id,
+    listingType,
+    propertyType: legacyTypeFromCatalog(propertyTypeKey),
+    propertyTypeKey,
+    propertyDetails: details,
+    location: {
+      address: String(location.address || ''),
+      city: String(location.city || location.cityName || location.cityId || ''),
+      neighborhood: String(location.neighborhood || location.neighborhoodName || location.neighborhoodId || ''),
+      country: String(location.country || 'RD Congo'),
+      coordinates: location.coordinates,
+      provinceId: location.provinceId,
+      cityId: location.cityId,
+      communeId: location.communeId,
+      neighborhoodId: location.neighborhoodId,
+    },
+    bedrooms: Number(details.bedrooms === '9_plus' ? 9 : details.bedrooms ?? data.bedrooms ?? 0),
+  } as Listing;
+};
+
+const collectionForListingType = (type: ListingType) => type === ListingType.RENT ? 'rentalProperties' : 'saleProperties';
+
 export const PropertyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
   const [properties, setProperties] = useState<Property[]>([]);
@@ -154,9 +206,23 @@ export const PropertyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     window.setTimeout(() => setToastMessage(null), 4000);
   }, []);
 
-  useEffect(() => onSnapshot(collection(db, 'properties'), (snap) => setProperties(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as Property))), []);
-  useEffect(() => onSnapshot(query(collection(db, 'listings'), where('status', '==', ListingStatus.ACTIVE)), (snap) => setPublicListings(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as Listing))), []);
-  useEffect(() => onSnapshot(collection(db, 'sponsoredAds'), (snap) => setSponsoredAds(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as SponsoredAd))), []);
+  useEffect(() => onSnapshot(collection(db, 'properties'), (snap) => setProperties(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as Property)), (error) => console.warn('properties:', error.code)), []);
+
+  // Migration progressive : les deux nouvelles collections sont canoniques, l'ancienne collection listings reste lue temporairement.
+  useEffect(() => {
+    let rental: Listing[] = [];
+    let sale: Listing[] = [];
+    let legacy: Listing[] = [];
+    const sync = () => setPublicListings(mergeById(legacy, sale, rental));
+    const unsubs = [
+      onSnapshot(query(collection(db, 'rentalProperties'), where('status', '==', ListingStatus.ACTIVE)), (snap) => { rental = snap.docs.map((d) => normalizeListing(d.id, d.data(), ListingType.RENT)); sync(); }, (error) => console.warn('rentalProperties:', error.code)),
+      onSnapshot(query(collection(db, 'saleProperties'), where('status', '==', ListingStatus.ACTIVE)), (snap) => { sale = snap.docs.map((d) => normalizeListing(d.id, d.data(), ListingType.SALE)); sync(); }, (error) => console.warn('saleProperties:', error.code)),
+      onSnapshot(query(collection(db, 'listings'), where('status', '==', ListingStatus.ACTIVE)), (snap) => { legacy = snap.docs.map((d) => normalizeListing(d.id, d.data())); sync(); }, (error) => console.warn('legacy listings:', error.code)),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, []);
+
+  useEffect(() => onSnapshot(collection(db, 'sponsoredAds'), (snap) => setSponsoredAds(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as SponsoredAd)), (error) => console.warn('sponsoredAds:', error.code)), []);
 
   useEffect(() => {
     setOwnListings([]); setAdminListings([]); setFavorites([]); setCartItems([]); setNotifications([]); setConversations([]); setInquiries([]); setJournalEntries([]); setStateAuditLogs([]); setDeveloperLogs([]);
@@ -164,24 +230,32 @@ export const PropertyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const unsubs: Array<() => void> = [];
 
     if (currentUser.role === UserRole.ADMIN) {
-      unsubs.push(onSnapshot(collection(db, 'listings'), (snap) => setAdminListings(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as Listing))));
+      let rental: Listing[] = []; let sale: Listing[] = []; let legacy: Listing[] = [];
+      const sync = () => setAdminListings(mergeById(legacy, sale, rental));
+      unsubs.push(onSnapshot(collection(db, 'rentalProperties'), (snap) => { rental = snap.docs.map((d) => normalizeListing(d.id, d.data(), ListingType.RENT)); sync(); }, (error) => console.warn('admin rental:', error.code)));
+      unsubs.push(onSnapshot(collection(db, 'saleProperties'), (snap) => { sale = snap.docs.map((d) => normalizeListing(d.id, d.data(), ListingType.SALE)); sync(); }, (error) => console.warn('admin sale:', error.code)));
+      unsubs.push(onSnapshot(collection(db, 'listings'), (snap) => { legacy = snap.docs.map((d) => normalizeListing(d.id, d.data())); sync(); }, (error) => console.warn('admin legacy:', error.code)));
     } else if ([UserRole.AGENT, UserRole.AGENCY, UserRole.OWNER].includes(currentUser.role)) {
-      unsubs.push(onSnapshot(query(collection(db, 'listings'), where('publishedBy.id', '==', currentUser.id)), (snap) => setOwnListings(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as Listing))));
+      let rental: Listing[] = []; let sale: Listing[] = []; let legacy: Listing[] = [];
+      const sync = () => setOwnListings(mergeById(legacy, sale, rental));
+      unsubs.push(onSnapshot(query(collection(db, 'rentalProperties'), where('publishedBy.id', '==', currentUser.id)), (snap) => { rental = snap.docs.map((d) => normalizeListing(d.id, d.data(), ListingType.RENT)); sync(); }, (error) => console.warn('own rental:', error.code)));
+      unsubs.push(onSnapshot(query(collection(db, 'saleProperties'), where('publishedBy.id', '==', currentUser.id)), (snap) => { sale = snap.docs.map((d) => normalizeListing(d.id, d.data(), ListingType.SALE)); sync(); }, (error) => console.warn('own sale:', error.code)));
+      unsubs.push(onSnapshot(query(collection(db, 'listings'), where('publishedBy.id', '==', currentUser.id)), (snap) => { legacy = snap.docs.map((d) => normalizeListing(d.id, d.data())); sync(); }, (error) => console.warn('own legacy:', error.code)));
     }
 
-    unsubs.push(onSnapshot(query(collection(db, 'favorites'), where('userId', '==', currentUser.id)), (snap) => setFavorites(snap.docs.map((d) => String(d.data().listingId)))));
-    unsubs.push(onSnapshot(query(collection(db, 'carts'), where('userId', '==', currentUser.id)), (snap) => setCartItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as CartItem))));
-    unsubs.push(onSnapshot(query(collection(db, 'notifications'), where('userId', '==', currentUser.id)), (snap) => setNotifications(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as NotificationItem))));
-    unsubs.push(onSnapshot(query(collection(db, 'conversations'), where('participantIds', 'array-contains', currentUser.id)), (snap) => setConversations(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as Conversation))));
-    unsubs.push(onSnapshot(query(collection(db, 'inquiries'), where('senderId', '==', currentUser.id)), (snap) => setInquiries(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as PropertyInquiry))));
-    unsubs.push(onSnapshot(query(collection(db, 'journal'), where('userId', '==', currentUser.id)), (snap) => setJournalEntries(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as JournalEntry))));
+    unsubs.push(onSnapshot(query(collection(db, 'favorites'), where('userId', '==', currentUser.id)), (snap) => setFavorites(snap.docs.map((d) => String(d.data().listingId))), (error) => console.warn('favorites:', error.code)));
+    unsubs.push(onSnapshot(query(collection(db, 'carts'), where('userId', '==', currentUser.id)), (snap) => setCartItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as CartItem)), (error) => console.warn('carts:', error.code)));
+    unsubs.push(onSnapshot(query(collection(db, 'notifications'), where('userId', '==', currentUser.id)), (snap) => setNotifications(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as NotificationItem)), (error) => console.warn('notifications:', error.code)));
+    unsubs.push(onSnapshot(query(collection(db, 'conversations'), where('participantIds', 'array-contains', currentUser.id)), (snap) => setConversations(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as Conversation)), (error) => console.warn('conversations:', error.code)));
+    unsubs.push(onSnapshot(query(collection(db, 'inquiries'), where('senderId', '==', currentUser.id)), (snap) => setInquiries(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as PropertyInquiry)), (error) => console.warn('inquiries:', error.code)));
+    unsubs.push(onSnapshot(query(collection(db, 'journal'), where('userId', '==', currentUser.id)), (snap) => setJournalEntries(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }) as JournalEntry)), (error) => console.warn('journal:', error.code)));
 
     if (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.STATE_AUDITOR) {
       unsubs.push(onSnapshot(collection(db, 'auditLogs'), (snap) => {
         const raw = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
         setStateAuditLogs(raw.filter((x: any) => x.kind === 'STATE_AUDIT') as StateAuditLog[]);
         setDeveloperLogs(raw.filter((x: any) => x.kind === 'DEVELOPER') as DeveloperLog[]);
-      }));
+      }, (error) => console.warn('auditLogs:', error.code)));
     }
 
     return () => unsubs.forEach((u) => u());
@@ -201,11 +275,8 @@ export const PropertyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!currentUser) { setActiveNavTab('menu'); showToast('Connectez-vous ou créez un compte pour utiliser les favoris.', 'info'); return; }
     void (async () => {
       const ref = doc(db, 'favorites', `${currentUser.id}_${listingId}`);
-      if (favorites.includes(listingId)) {
-        await deleteDoc(ref); showToast('Retiré des favoris.', 'info');
-      } else {
-        await setDoc(ref, { userId: currentUser.id, listingId, createdAt: new Date().toISOString() }); showToast('Ajouté aux favoris.', 'success');
-      }
+      if (favorites.includes(listingId)) { await deleteDoc(ref); showToast('Retiré des favoris.', 'info'); }
+      else { await setDoc(ref, { userId: currentUser.id, listingId, createdAt: new Date().toISOString() }); showToast('Ajouté aux favoris.', 'success'); }
     })();
   };
 
@@ -230,41 +301,66 @@ export const PropertyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       showToast('Un compte professionnel validé est requis pour publier.', 'error'); return false;
     }
     try {
-      const ref = doc(collection(db, 'listings'));
+      const listingType = listingData.listingType || ListingType.SALE;
+      const collectionName = collectionForListingType(listingType);
+      const ref = doc(collection(db, collectionName));
       const now = new Date().toISOString();
-      const listing: Listing = {
-        id: ref.id,
-        propertyId: listingData.propertyId || '',
-        title: listingData.title || 'Nouvelle annonce immobilière',
-        shortDescription: listingData.shortDescription || '', fullDescription: listingData.fullDescription || '',
-        listingType: listingData.listingType || ListingType.SALE,
-        propertyType: listingData.propertyType || PropertyType.APARTMENT,
-        price: Number(listingData.price || 0), currency: listingData.currency || 'USD',
-        location: listingData.location || { address: '', city: 'Kinshasa', neighborhood: '', country: 'RD Congo' },
-        surface: Number(listingData.surface || 0), bedrooms: Number(listingData.bedrooms || 0), bathrooms: Number(listingData.bathrooms || 0),
-        features: listingData.features || [], mainPhoto: listingData.mainPhoto || '', galleryPhotos: listingData.galleryPhotos || [],
-        status: currentUser.role === UserRole.ADMIN ? (listingData.status || ListingStatus.ACTIVE) : ListingStatus.PENDING_REVIEW,
-        publishedBy: listingData.publishedBy || {
-          id: currentUser.id, name: currentUser.fullName, role: currentUser.role, avatarUrl: currentUser.avatarUrl,
-          companyName: currentUser.companyName, isVerified: currentUser.verificationStatus === VerificationStatus.VERIFIED,
-          phone: currentUser.phone, email: currentUser.email,
-        },
-        viewsCount: 0, inquiriesCount: 0, isFeatured: false, publishedAt: now, updatedAt: now,
+      const source: any = listingData;
+      const propertyTypeKey: PropertyTypeKey = source.propertyTypeKey || catalogKeyFromLegacy(listingData.propertyType);
+      const status = currentUser.role === UserRole.ADMIN ? (listingData.status || ListingStatus.ACTIVE) : ListingStatus.PENDING_REVIEW;
+      const publishedBy = listingData.publishedBy || {
+        id: currentUser.id, name: currentUser.fullName, role: currentUser.role, avatarUrl: currentUser.avatarUrl || null,
+        companyName: currentUser.companyName || null, isVerified: currentUser.verificationStatus === VerificationStatus.VERIFIED,
+        phone: currentUser.phone || '', email: currentUser.email,
       };
-      await setDoc(ref, listing);
-      await addJournal('Publication d’annonce', `Annonce « ${listing.title} » soumise`, 'LISTING');
+      const location: any = listingData.location || {};
+      const propertyDetails = source.propertyDetails || {
+        bedrooms: String(listingData.bedrooms || 0), parkingCapacity: '0', generator: false, solarPanels: false,
+        waterTank: false, furnished: false, swimmingPool: false, shortStayAvailable: false,
+      };
+      await setDoc(ref, {
+        id: ref.id,
+        propertyId: listingData.propertyId || ref.id,
+        propertyType: propertyTypeKey,
+        transactionType: listingType === ListingType.RENT ? 'rental' : 'sale',
+        title: listingData.title || 'Nouvelle annonce immobilière',
+        description: listingData.fullDescription || listingData.shortDescription || '',
+        shortDescription: listingData.shortDescription || '',
+        fullDescription: listingData.fullDescription || '',
+        price: Number(listingData.price || 0),
+        currency: listingData.currency || 'USD',
+        location: {
+          provinceId: location.provinceId || '', cityId: location.cityId || '', communeId: location.communeId || '', neighborhoodId: location.neighborhoodId || '',
+          address: location.address || '', city: location.city || '', neighborhood: location.neighborhood || '', country: location.country || 'RD Congo',
+          latitude: location.latitude ?? location.coordinates?.lat ?? null, longitude: location.longitude ?? location.coordinates?.lng ?? null,
+        },
+        propertyDetails,
+        surface: Number(listingData.surface || 0), bathrooms: Number(listingData.bathrooms || 0),
+        features: listingData.features || [], mainPhoto: listingData.mainPhoto || '', galleryPhotos: listingData.galleryPhotos || [],
+        status, publishedBy, viewsCount: 0, inquiriesCount: 0, isFeatured: false, publishedAt: now, createdAt: now, updatedAt: now,
+      });
+      await addJournal('Publication d’annonce', `Annonce « ${listingData.title || 'Nouvelle annonce immobilière'} » soumise`, 'LISTING');
       showToast(currentUser.role === UserRole.ADMIN ? 'Annonce publiée.' : 'Annonce envoyée à l’administration pour validation.', 'success');
       return true;
     } catch (error) { console.error(error); showToast('Publication impossible.', 'error'); return false; }
   };
 
   const updateListing = async (id: string, listingData: Partial<Listing>) => {
-    try { await updateDoc(doc(db, 'listings', id), { ...listingData, updatedAt: new Date().toISOString() }); return true; }
-    catch (error) { console.error(error); showToast('Modification impossible.', 'error'); return false; }
+    const current = listings.find((item) => item.id === id);
+    if (!current) return false;
+    try {
+      const payload: any = { ...listingData, updatedAt: new Date().toISOString() };
+      if (listingData.propertyType) payload.propertyType = catalogKeyFromLegacy(listingData.propertyType);
+      delete payload.listingType;
+      await updateDoc(doc(db, collectionForListingType(current.listingType), id), payload);
+      return true;
+    } catch (error) { console.error(error); showToast('Modification impossible.', 'error'); return false; }
   };
 
   const deleteListing = async (id: string) => {
-    try { await deleteDoc(doc(db, 'listings', id)); showToast('Annonce supprimée.', 'info'); return true; }
+    const current = listings.find((item) => item.id === id);
+    if (!current) return false;
+    try { await deleteDoc(doc(db, collectionForListingType(current.listingType), id)); showToast('Annonce supprimée.', 'info'); return true; }
     catch (error) { console.error(error); showToast('Suppression impossible.', 'error'); return false; }
   };
 
