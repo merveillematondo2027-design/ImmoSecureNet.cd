@@ -21,7 +21,9 @@ import { db } from '../../firebase';
 import { Listing, ListingStatus, ListingType, PropertyType, UserRole } from '../../types';
 import {
   bedroomOptions,
-  kinshasaCommunes,
+  cities,
+  communes,
+  neighborhoods,
   parkingOptions,
   propertyAmenityOptions,
   PropertyTypeKey,
@@ -40,38 +42,19 @@ const DEFAULT_ROTATION_SECONDS = 6;
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=1600&q=85';
 
 const experienceItems: ShowcaseItem[] = [
-  {
-    id: 'experience-1',
-    title: 'Restaurants',
-    subtitle: 'Adresses et tables à découvrir',
-    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
-    badge: 'Expérience',
-  },
-  {
-    id: 'experience-2',
-    title: 'Parcs & loisirs',
-    subtitle: 'Sorties, détente et activités',
-    image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
-    badge: 'Expérience',
-  },
+  { id: 'experience-1', title: 'Restaurants', subtitle: 'Adresses et tables à découvrir', image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80', badge: 'Expérience' },
+  { id: 'experience-2', title: 'Parcs & loisirs', subtitle: 'Sorties, détente et activités', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80', badge: 'Expérience' },
 ];
 
 const ishopItems: ShowcaseItem[] = [
-  {
-    id: 'ishop-1',
-    title: 'I-SHOP',
-    subtitle: 'Magasins et équipements pour la maison',
-    image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80',
-    badge: 'I-SHOP',
-  },
+  { id: 'ishop-1', title: 'I-SHOP', subtitle: 'Magasins et équipements pour la maison', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80', badge: 'I-SHOP' },
 ];
 
-const formatPrice = (price: number, currency: string) =>
-  new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: currency === 'USD' ? 'USD' : currency === 'EUR' ? 'EUR' : 'XAF',
-    maximumFractionDigits: 0,
-  }).format(price);
+const formatPrice = (price: number, currency: string) => new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: currency === 'USD' ? 'USD' : currency === 'EUR' ? 'EUR' : 'XAF',
+  maximumFractionDigits: 0,
+}).format(price);
 
 const mapCatalogTypeToLegacy = (value: PropertyTypeKey): PropertyType => {
   if (value === 'landParcel') return PropertyType.LAND;
@@ -213,9 +196,9 @@ export const MarketplaceView: React.FC = () => {
   const [intent, setIntent] = useState<Intent>('RENT');
   const [propertyType, setPropertyType] = useState<PropertyTypeKey | ''>('');
   const [provinceId, setProvinceId] = useState('');
-  const [city, setCity] = useState('');
+  const [cityId, setCityId] = useState('');
   const [communeId, setCommuneId] = useState('');
-  const [neighborhood, setNeighborhood] = useState('');
+  const [neighborhoodId, setNeighborhoodId] = useState('');
   const [bedrooms, setBedrooms] = useState('');
   const [parkingCapacity, setParkingCapacity] = useState('');
   const [amenities, setAmenities] = useState<Record<string, TriState>>(() => Object.fromEntries(propertyAmenityOptions.map(([key]) => [key, 'ANY'])));
@@ -232,11 +215,11 @@ export const MarketplaceView: React.FC = () => {
   useEffect(() => onSnapshot(doc(db, 'appSettings', 'homepage'), (snapshot) => {
     const value = Number(snapshot.data()?.rotationSeconds);
     if (Number.isFinite(value) && value >= 2 && value <= 60) setRotationSeconds(value);
-  }), []);
+  }, (error) => console.warn('Lecture appSettings/homepage:', error.code)), []);
 
   useEffect(() => onSnapshot(doc(db, 'appSettings', 'branding'), (snapshot) => {
     setHeroImage(String(snapshot.data()?.homeCoverDataUrl || '') || DEFAULT_HERO_IMAGE);
-  }), []);
+  }, (error) => console.warn('Lecture appSettings/branding:', error.code)), []);
 
   useEffect(() => {
     const rentalQuery = query(collection(db, 'rentalProperties'), where('status', '==', ListingStatus.ACTIVE));
@@ -259,18 +242,10 @@ export const MarketplaceView: React.FC = () => {
   const rentListings = useMemo(() => sortedListings.filter((listing) => listing.listingType === ListingType.RENT), [sortedListings]);
 
   const typeGroups = intent === 'RENT' ? rentalPropertyTypes : salePropertyTypes;
-
-  const cityOptions = useMemo(() => {
-    const names = new Set<string>();
-    sortedListings.forEach((listing) => {
-      const loc: any = listing.location;
-      if (!provinceId || loc.provinceId === provinceId || (provinceId === 'kinshasa' && listing.location.city.toLowerCase() === 'kinshasa')) {
-        if (listing.location.city) names.add(listing.location.city);
-      }
-    });
-    if (provinceId === 'kinshasa') names.add('Kinshasa');
-    return [...names].sort((a, b) => a.localeCompare(b, 'fr'));
-  }, [sortedListings, provinceId]);
+  const cityOptions = useMemo(() => cities.filter((item) => !provinceId || item.provinceId === provinceId), [provinceId]);
+  const communeOptions = useMemo(() => communes.filter((item) => !cityId || item.cityId === cityId), [cityId]);
+  const neighborhoodOptions = useMemo(() => neighborhoods.filter((item) => !communeId || item.communeId === communeId), [communeId]);
+  const selectedCityName = cityOptions.find((item) => item.id === cityId)?.name || cities.find((item) => item.id === cityId)?.name || '';
 
   const filteredResults = useMemo(() => sortedListings.filter((listing) => {
     if (listing.listingType !== (intent === 'RENT' ? ListingType.RENT : ListingType.SALE)) return false;
@@ -285,27 +260,27 @@ export const MarketplaceView: React.FC = () => {
     }
 
     if (provinceId) {
-      const fallbackProvinceMatch = provinceId === 'kinshasa' && listing.location.city.toLowerCase() === 'kinshasa';
-      if (loc.provinceId !== provinceId && !fallbackProvinceMatch) return false;
+      const byId = loc.provinceId === provinceId;
+      const provinceName = provinces.find((province) => province.id === provinceId)?.name?.toLowerCase();
+      const byText = provinceName && `${listing.location.city} ${listing.location.address}`.toLowerCase().includes(provinceName);
+      if (!byId && !byText) return false;
     }
-    if (city && listing.location.city.toLowerCase() !== city.toLowerCase() && loc.cityId !== city.toLowerCase()) return false;
+    if (cityId) {
+      const listingCity = listing.location.city.toLowerCase();
+      if (loc.cityId !== cityId && listingCity !== selectedCityName.toLowerCase() && listingCity !== cityId.toLowerCase()) return false;
+    }
     if (communeId && loc.communeId !== communeId && !listing.location.neighborhood.toLowerCase().includes(communeId.replace(/-/g, ' '))) return false;
-    if (neighborhood.trim()) {
+    if (neighborhoodId) {
+      const selectedNeighborhood = neighborhoods.find((item) => item.id === neighborhoodId);
       const searchable = `${listing.location.neighborhood} ${loc.neighborhoodId || ''} ${listing.location.address}`.toLowerCase();
-      if (!searchable.includes(neighborhood.toLowerCase())) return false;
+      const matchesKeyword = selectedNeighborhood?.searchKeywords.some((keyword) => searchable.includes(keyword.toLowerCase()));
+      if (loc.neighborhoodId !== neighborhoodId && !matchesKeyword) return false;
     }
 
-    if (bedrooms) {
-      if (bedrooms === '9_plus' ? listing.bedrooms < 9 : listing.bedrooms !== Number(bedrooms)) return false;
-    }
+    if (bedrooms && (bedrooms === '9_plus' ? listing.bedrooms < 9 : listing.bedrooms !== Number(bedrooms))) return false;
     if (parkingCapacity) {
       const actual = String(detail.parkingCapacity ?? '');
-      if (actual) {
-        if (actual !== parkingCapacity) return false;
-      } else {
-        const parkingFeature = listing.features.join(' ').toLowerCase();
-        if (!parkingFeature.includes('parking')) return false;
-      }
+      if (actual ? actual !== parkingCapacity : !listing.features.join(' ').toLowerCase().includes('parking')) return false;
     }
 
     for (const [key, state] of Object.entries(amenities)) {
@@ -327,7 +302,7 @@ export const MarketplaceView: React.FC = () => {
     if (minPrice && listing.price < Number(minPrice)) return false;
     if (maxPrice && listing.price > Number(maxPrice)) return false;
     return true;
-  }), [sortedListings, intent, propertyType, provinceId, city, communeId, neighborhood, bedrooms, parkingCapacity, amenities, minPrice, maxPrice]);
+  }), [sortedListings, intent, propertyType, provinceId, cityId, communeId, neighborhoodId, bedrooms, parkingCapacity, amenities, minPrice, maxPrice, selectedCityName]);
 
   const search = (event: React.FormEvent) => {
     event.preventDefault();
@@ -340,18 +315,14 @@ export const MarketplaceView: React.FC = () => {
       setActiveNavTab('hotel_partners');
       return;
     }
-    const map: Record<string, PropertyTypeKey> = {
-      LAND: 'landParcel', APARTMENT: 'apartment', HOME: 'house', OFFICE: 'office', COMMERCE: 'commercialHouse',
-    };
+    const map: Record<string, PropertyTypeKey> = { LAND: 'landParcel', APARTMENT: 'apartment', HOME: 'house', OFFICE: 'office', COMMERCE: 'commercialHouse' };
     setPropertyType(map[value] || '');
     setSearchSubmitted(false);
     document.getElementById('home-search')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const chat = (listing: Listing) => {
-    sessionStorage.setItem('immosecure_pending_contact', JSON.stringify({
-      type: 'LISTING', listingId: listing.id, publisherId: listing.publishedBy.id, publisherName: listing.publishedBy.name, listingTitle: listing.title, price: listing.price,
-    }));
+    sessionStorage.setItem('immosecure_pending_contact', JSON.stringify({ type: 'LISTING', listingId: listing.id, publisherId: listing.publishedBy.id, publisherName: listing.publishedBy.name, listingTitle: listing.title, price: listing.price }));
     setActiveNavTab('messages');
   };
 
@@ -362,13 +333,8 @@ export const MarketplaceView: React.FC = () => {
   };
 
   const categories = [
-    ['LAND', 'Terrains / Parcelles'],
-    ['APARTMENT', 'Appartements'],
-    ['HOME', 'Maisons / Villas / Immeubles'],
-    ['OFFICE', 'Bureaux'],
-    ['COMMERCE', 'Commerces'],
-    ['HOTELS', 'Hôtels'],
-    ['OTHER', 'Autres'],
+    ['LAND', 'Terrains / Parcelles'], ['APARTMENT', 'Appartements'], ['HOME', 'Maisons / Villas / Immeubles'],
+    ['OFFICE', 'Bureaux'], ['COMMERCE', 'Commerces'], ['HOTELS', 'Hôtels'], ['OTHER', 'Autres'],
   ];
 
   return (
@@ -407,23 +373,27 @@ export const MarketplaceView: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative">
               <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-              <select value={provinceId} onChange={(event) => { setProvinceId(event.target.value); setCity(''); setCommuneId(''); }} className="w-full border border-slate-300 rounded-xl pl-9 pr-8 py-3 text-sm bg-white appearance-none">
+              <select value={provinceId} onChange={(event) => { setProvinceId(event.target.value); setCityId(''); setCommuneId(''); setNeighborhoodId(''); }} className="w-full border border-slate-300 rounded-xl pl-9 pr-8 py-3 text-sm bg-white appearance-none">
                 <option value="">Province</option>{provinces.map((province) => <option key={province.id} value={province.id}>{province.name}</option>)}
               </select>
               <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
             </div>
-            <select value={city} onChange={(event) => { setCity(event.target.value); setCommuneId(''); }} className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white">
-              <option value="">Ville</option>{cityOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+            <select value={cityId} onChange={(event) => { setCityId(event.target.value); setCommuneId(''); setNeighborhoodId(''); }} disabled={!provinceId} className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400">
+              <option value="">Ville</option>{cityOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {provinceId === 'kinshasa' ? (
-              <select value={communeId} onChange={(event) => setCommuneId(event.target.value)} className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white">
-                <option value="">Commune</option>{kinshasaCommunes.map((commune) => <option key={commune.id} value={commune.id}>{commune.name}</option>)}
+            <select value={communeId} onChange={(event) => { setCommuneId(event.target.value); setNeighborhoodId(''); }} disabled={!cityId} className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400">
+              <option value="">Commune</option>{communeOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            {neighborhoodOptions.length ? (
+              <select value={neighborhoodId} onChange={(event) => setNeighborhoodId(event.target.value)} className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white">
+                <option value="">Quartier</option>{neighborhoodOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
-            ) : <input value={communeId} onChange={(event) => setCommuneId(event.target.value)} placeholder="Commune" className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm" />}
-            <input value={neighborhood} onChange={(event) => setNeighborhood(event.target.value)} placeholder="Quartier" className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm" />
+            ) : (
+              <input value={neighborhoodId} onChange={(event) => setNeighborhoodId(event.target.value)} placeholder="Quartier (à compléter progressivement)" className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm" />
+            )}
           </div>
 
           <button type="button" onClick={() => setDetailsOpen((value) => !value)} className="w-full border border-slate-300 rounded-xl px-3 py-3 flex items-center justify-between text-sm font-bold text-slate-700">
@@ -433,7 +403,7 @@ export const MarketplaceView: React.FC = () => {
           {detailsOpen && (
             <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <select value={bedrooms} onChange={(event) => setBedrooms(event.target.value)} className="border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white"><option value="">Nombre de chambres</option>{bedroomOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                <select value={bedrooms} onChange={(event) => setBedrooms(event.target.value)} className="border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white"><option value="">Nombre des pièces</option>{bedroomOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
                 <select value={parkingCapacity} onChange={(event) => setParkingCapacity(event.target.value)} className="border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white"><option value="">Capacité de stationnement</option>{parkingOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
               </div>
               <div className="space-y-2">
@@ -466,6 +436,7 @@ export const MarketplaceView: React.FC = () => {
                 <div className={`grid ${listing.listingType === ListingType.SALE ? 'grid-cols-2' : 'grid-cols-1'} border-t`}><button onClick={() => chat(listing)} className="py-3 text-[#16a34a] font-bold text-xs flex items-center justify-center gap-1"><MessageCircle className="w-4 h-4" /> Discuter</button>{listing.listingType === ListingType.SALE && <button onClick={() => void addToCart(listing)} className="py-3 text-slate-700 font-bold text-xs border-l flex items-center justify-center gap-1"><ShoppingCart className="w-4 h-4" /> Panier</button>}</div>
               </article>
             ))}
+            {!filteredResults.length && <div className="sm:col-span-2 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">Aucun bien ne correspond encore à ces critères.</div>}
           </div>
         </section>
       )}
