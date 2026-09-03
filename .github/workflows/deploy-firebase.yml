@@ -26,6 +26,13 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
       - name: Install dependencies
         run: npm ci
 
@@ -33,6 +40,4 @@ jobs:
         run: npm run build:web
 
       - name: Deploy Hosting, Firestore rules and Storage rules
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: npx firebase-tools@latest deploy --project automarket-suite --only hosting,firestore:rules,storage --non-interactive --token "$FIREBASE_TOKEN"
+        run: npx firebase-tools@latest deploy --project automarket-suite --only hosting,firestore:rules,storage --non-interactive
