@@ -1,20 +1,14 @@
 import React from 'react';
-import { Search, Users, BriefcaseBusiness, Info, Phone, Settings } from 'lucide-react';
+import { Search, Users, BriefcaseBusiness, Info, Phone, Settings, Home } from 'lucide-react';
 import { useProperties } from '../../context/PropertyContext';
 
 export const Sidebar: React.FC = () => {
   const { activeNavTab, setActiveNavTab } = useProperties();
   const isMobileMenuOpen = activeNavTab === 'navigation';
 
-  const goSearch = () => {
-    setActiveNavTab('marketplace');
-    window.setTimeout(() => {
-      document.getElementById('home-search')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 80);
-  };
-
   const navItems = [
-    { id: 'search', label: 'RECHERCHER', icon: Search, action: goSearch },
+    { id: 'marketplace', label: 'ACCUEIL', icon: Home, action: () => setActiveNavTab('marketplace') },
+    { id: 'global_search', label: 'RECHERCHER', icon: Search, action: () => setActiveNavTab('global_search') },
     { id: 'accounts', label: 'MES COMPTES', icon: Users, action: () => setActiveNavTab('accounts') },
     { id: 'services', label: 'NOS SERVICES', icon: BriefcaseBusiness, action: () => setActiveNavTab('services') },
     { id: 'about', label: 'À PROPOS DE NOUS', icon: Info, action: () => setActiveNavTab('about') },
