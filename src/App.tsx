@@ -5,6 +5,7 @@ import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { BottomNav } from './components/layout/BottomNav';
 import { MarketplaceView } from './components/marketplace/MarketplaceView';
+import { CategoryBrowseView } from './components/marketplace/CategoryBrowseView';
 import { FurnitureMarketplaceView } from './components/furniture/FurnitureMarketplaceView';
 import { HotelPartnersView } from './components/hotels/HotelPartnersView';
 import { ConnectivityPartnersView } from './components/connectivity/ConnectivityPartnersView';
@@ -19,6 +20,7 @@ import { MessagingView } from './components/messaging/MessagingView';
 import { NotificationsView } from './components/notifications/NotificationsView';
 import { UserMenuView } from './components/menu/UserMenuView';
 import { InformationView } from './components/menu/InformationView';
+import { ServiceModuleView } from './components/menu/ServiceModuleView';
 import { AuthModal } from './components/auth/AuthModal';
 import { PropertyDetailModal } from './components/property/PropertyDetailModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -45,11 +47,13 @@ const MainAppContent: React.FC = () => {
   const renderActiveView = () => {
     switch (activeNavTab) {
       case 'marketplace': return <MarketplaceView />;
+      case 'property_category': return <CategoryBrowseView />;
       case 'furniture_marketplace': return <FurnitureMarketplaceView />;
       case 'hotel_partners': return <HotelPartnersView />;
       case 'connectivity_partners': return <ConnectivityPartnersView />;
       case 'accounts': case 'menu': return <UserMenuView onOpenAuth={handleOpenAuth} />;
       case 'services': return <InformationView kind="services" />;
+      case 'service_module': return <ServiceModuleView />;
       case 'about': return <InformationView kind="about" />;
       case 'contact': return <InformationView kind="contact" />;
       case 'settings': return <InformationView kind="settings" />;
