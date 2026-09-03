@@ -247,6 +247,35 @@ export const MarketplaceView: React.FC = () => {
   const neighborhoodOptions = useMemo(() => neighborhoods.filter((item) => !communeId || item.communeId === communeId), [communeId]);
   const selectedCityName = cityOptions.find((item) => item.id === cityId)?.name || cities.find((item) => item.id === cityId)?.name || '';
 
+  const handleCityChange = (value: string) => {
+    setCityId(value);
+    setCommuneId('');
+    setNeighborhoodId('');
+    if (!value) return;
+    const selectedCity = cities.find((item) => item.id === value);
+    if (selectedCity?.provinceId) setProvinceId(selectedCity.provinceId);
+  };
+
+  const handleCommuneChange = (value: string) => {
+    setCommuneId(value);
+    setNeighborhoodId('');
+    if (!value) return;
+    const selectedCommune = communes.find((item) => item.id === value);
+    if (!selectedCommune) return;
+    setCityId(selectedCommune.cityId);
+    setProvinceId(selectedCommune.provinceId);
+  };
+
+  const handleNeighborhoodChange = (value: string) => {
+    setNeighborhoodId(value);
+    if (!value) return;
+    const selectedNeighborhood = neighborhoods.find((item) => item.id === value);
+    if (!selectedNeighborhood) return;
+    setCommuneId(selectedNeighborhood.communeId);
+    setCityId(selectedNeighborhood.cityId);
+    setProvinceId(selectedNeighborhood.provinceId);
+  };
+
   const filteredResults = useMemo(() => sortedListings.filter((listing) => {
     if (listing.listingType !== (intent === 'RENT' ? ListingType.RENT : ListingType.SALE)) return false;
     const item: any = listing;
@@ -356,61 +385,66 @@ export const MarketplaceView: React.FC = () => {
 
       <section id="home-search" className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm scroll-mt-24">
         <div className="grid grid-cols-2">
-          <button onClick={() => { setIntent('RENT'); setPropertyType(''); }} className={`py-4 font-black ${intent === 'RENT' ? 'bg-[#16a34a] text-white' : 'bg-emerald-50 text-emerald-800'}`}>À LOUER</button>
-          <button onClick={() => { setIntent('SALE'); setPropertyType(''); }} className={`py-4 font-black ${intent === 'SALE' ? 'bg-[#1e3a8a] text-white' : 'bg-blue-50 text-blue-900'}`}>À VENDRE</button>
+          <button type="button" onClick={() => { setIntent('RENT'); setPropertyType(''); setSearchSubmitted(false); }} className={`py-4 font-black ${intent === 'RENT' ? 'bg-[#16a34a] text-white' : 'bg-emerald-50 text-emerald-800'}`}>À LOUER</button>
+          <button type="button" onClick={() => { setIntent('SALE'); setPropertyType(''); setSearchSubmitted(false); }} className={`py-4 font-black ${intent === 'SALE' ? 'bg-[#1e3a8a] text-white' : 'bg-blue-50 text-blue-900'}`}>À VENDRE</button>
         </div>
 
         <form onSubmit={search} className="p-4 space-y-3">
           <div className="relative">
-            <Building2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <select value={propertyType} onChange={(event) => setPropertyType(event.target.value as PropertyTypeKey | '')} className="w-full border border-slate-300 rounded-xl pl-9 pr-9 py-3 text-sm bg-white appearance-none">
+            <Building2 className="pointer-events-none w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <select aria-label="Type de bien" value={propertyType} onChange={(event) => setPropertyType(event.target.value as PropertyTypeKey | '')} className="w-full border border-slate-300 rounded-xl pl-9 pr-9 py-3 text-sm bg-white appearance-none cursor-pointer">
               <option value="">Type de bien</option>
               {typeGroups.map((group) => <optgroup key={group.group} label={group.group}>{group.items.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</optgroup>)}
             </select>
-            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <ChevronDown className="pointer-events-none w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative">
-              <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-              <select value={provinceId} onChange={(event) => { setProvinceId(event.target.value); setCityId(''); setCommuneId(''); setNeighborhoodId(''); }} className="w-full border border-slate-300 rounded-xl pl-9 pr-8 py-3 text-sm bg-white appearance-none">
+              <MapPin className="pointer-events-none w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <select aria-label="Province" value={provinceId} onChange={(event) => { setProvinceId(event.target.value); setCityId(''); setCommuneId(''); setNeighborhoodId(''); }} className="w-full border border-slate-300 rounded-xl pl-9 pr-8 py-3 text-sm bg-white appearance-none cursor-pointer">
                 <option value="">Province</option>{provinces.map((province) => <option key={province.id} value={province.id}>{province.name}</option>)}
               </select>
-              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <ChevronDown className="pointer-events-none w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
             </div>
-            <select value={cityId} onChange={(event) => { setCityId(event.target.value); setCommuneId(''); setNeighborhoodId(''); }} disabled={!provinceId} className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400">
-              <option value="">Ville</option>{cityOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
+            <div className="relative">
+              <select aria-label="Ville" value={cityId} onChange={(event) => handleCityChange(event.target.value)} className="w-full border border-slate-300 rounded-xl px-3 pr-9 py-3 text-sm bg-white appearance-none cursor-pointer">
+                <option value="">Ville</option>{cityOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <select value={communeId} onChange={(event) => { setCommuneId(event.target.value); setNeighborhoodId(''); }} disabled={!cityId} className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white disabled:bg-slate-50 disabled:text-slate-400">
-              <option value="">Commune</option>{communeOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
-            {neighborhoodOptions.length ? (
-              <select value={neighborhoodId} onChange={(event) => setNeighborhoodId(event.target.value)} className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white">
+            <div className="relative">
+              <select aria-label="Commune" value={communeId} onChange={(event) => handleCommuneChange(event.target.value)} className="w-full border border-slate-300 rounded-xl px-3 pr-9 py-3 text-sm bg-white appearance-none cursor-pointer">
+                <option value="">Commune</option>{communeOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+            <div className="relative">
+              <select aria-label="Quartier" value={neighborhoodId} onChange={(event) => handleNeighborhoodChange(event.target.value)} className="w-full border border-slate-300 rounded-xl px-3 pr-9 py-3 text-sm bg-white appearance-none cursor-pointer">
                 <option value="">Quartier</option>{neighborhoodOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
-            ) : (
-              <input value={neighborhoodId} onChange={(event) => setNeighborhoodId(event.target.value)} placeholder="Quartier (à compléter progressivement)" className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm" />
-            )}
+              <ChevronDown className="pointer-events-none w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
           </div>
 
-          <button type="button" onClick={() => setDetailsOpen((value) => !value)} className="w-full border border-slate-300 rounded-xl px-3 py-3 flex items-center justify-between text-sm font-bold text-slate-700">
+          <button type="button" onClick={() => setDetailsOpen((value) => !value)} className="w-full border border-slate-300 rounded-xl px-3 py-3 flex items-center justify-between text-sm font-bold text-slate-700 cursor-pointer active:bg-slate-50">
             <span className="flex items-center gap-2"><SlidersHorizontal className="w-4 h-4" /> Plus de détails</span>{detailsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
 
           {detailsOpen && (
             <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <select value={bedrooms} onChange={(event) => setBedrooms(event.target.value)} className="border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white"><option value="">Nombre des pièces</option>{bedroomOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-                <select value={parkingCapacity} onChange={(event) => setParkingCapacity(event.target.value)} className="border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white"><option value="">Capacité de stationnement</option>{parkingOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                <select value={bedrooms} onChange={(event) => setBedrooms(event.target.value)} className="border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white cursor-pointer"><option value="">Nombre des pièces</option>{bedroomOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                <select value={parkingCapacity} onChange={(event) => setParkingCapacity(event.target.value)} className="border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white cursor-pointer"><option value="">Capacité de stationnement</option>{parkingOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
               </div>
               <div className="space-y-2">
                 {propertyAmenityOptions.map(([key, label]) => (
                   <div key={key} className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
                     <span className="text-xs font-bold text-slate-700">{label}</span>
-                    <select value={amenities[key]} onChange={(event) => setAmenities((current) => ({ ...current, [key]: event.target.value as TriState }))} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white"><option value="ANY">Indifférent</option><option value="YES">Oui</option><option value="NO">Non</option></select>
+                    <select value={amenities[key]} onChange={(event) => setAmenities((current) => ({ ...current, [key]: event.target.value as TriState }))} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white cursor-pointer"><option value="ANY">Indifférent</option><option value="YES">Oui</option><option value="NO">Non</option></select>
                   </div>
                 ))}
               </div>
@@ -418,11 +452,11 @@ export const MarketplaceView: React.FC = () => {
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="relative"><DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="number" value={minPrice} onChange={(event) => setMinPrice(event.target.value)} placeholder="Prix min" className="w-full border border-slate-300 rounded-xl pl-9 pr-2 py-3 text-sm" /></div>
-            <div className="relative"><DollarSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="number" value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)} placeholder="Prix max" className="w-full border border-slate-300 rounded-xl pl-9 pr-2 py-3 text-sm" /></div>
+            <div className="relative"><DollarSign className="pointer-events-none w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="number" value={minPrice} onChange={(event) => setMinPrice(event.target.value)} placeholder="Prix min" className="w-full border border-slate-300 rounded-xl pl-9 pr-2 py-3 text-sm" /></div>
+            <div className="relative"><DollarSign className="pointer-events-none w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="number" value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)} placeholder="Prix max" className="w-full border border-slate-300 rounded-xl pl-9 pr-2 py-3 text-sm" /></div>
           </div>
 
-          <button className={`w-full py-3.5 rounded-xl text-white font-black flex items-center justify-center gap-2 ${intent === 'RENT' ? 'bg-[#16a34a]' : 'bg-[#1e3a8a]'}`}><Search className="w-4 h-4" /> RECHERCHER</button>
+          <button type="submit" className={`w-full py-3.5 rounded-xl text-white font-black flex items-center justify-center gap-2 ${intent === 'RENT' ? 'bg-[#16a34a]' : 'bg-[#1e3a8a]'}`}><Search className="w-4 h-4" /> RECHERCHER</button>
         </form>
       </section>
 
