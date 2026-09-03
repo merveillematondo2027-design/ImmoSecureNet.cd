@@ -13,6 +13,7 @@ import { HotelPartnersView } from './components/hotels/HotelPartnersView';
 import { ConnectivityPartnersView } from './components/connectivity/ConnectivityPartnersView';
 import { AgentDashboardView } from './components/agent/AgentDashboardView';
 import { OwnerPropertiesView } from './components/owner/OwnerPropertiesView';
+import { PublishHubView } from './components/publish/PublishHubView';
 import { StateAuditorView } from './components/audit/StateAuditorView';
 import { AdminView } from './components/admin/AdminView';
 import { BrandingSettings } from './components/admin/BrandingSettings';
@@ -63,8 +64,7 @@ const MainAppContent: React.FC = () => {
     };
     const key = categories[text];
     if (!key) return;
-    event.preventDefault();
-    event.stopPropagation();
+    event.preventDefault(); event.stopPropagation();
     sessionStorage.setItem('immosecure_property_category', key);
     setActiveNavTab('property_category');
   };
@@ -83,6 +83,7 @@ const MainAppContent: React.FC = () => {
       case 'about': return <InformationView kind="about" />;
       case 'contact': return <InformationView kind="contact" />;
       case 'settings': return <InformationView kind="settings" />;
+      case 'publish': return <PublishHubView />;
       case 'agent_dashboard': return <ProtectedModule title="Tableau de bord Agent" description="Connectez-vous pour accéder à ce module." onOpenAuth={handleOpenAuth}><AgentDashboardView /></ProtectedModule>;
       case 'owner_properties': return <ProtectedModule title="Mes Biens" description="Connectez-vous pour gérer votre patrimoine immobilier." onOpenAuth={handleOpenAuth}><OwnerPropertiesView /></ProtectedModule>;
       case 'audit': return <ProtectedModule title="Audit de l'État" description="Accès sécurisé pour l'audit." onOpenAuth={handleOpenAuth}><StateAuditorView /></ProtectedModule>;
@@ -95,7 +96,15 @@ const MainAppContent: React.FC = () => {
       default: return <MarketplaceView />;
     }
   };
-  return <div className="min-h-screen bg-[#F1F5F9] text-slate-900 flex flex-col font-sans antialiased overflow-x-hidden">{toastMessage && <div className="fixed top-4 left-3 right-3 sm:left-auto sm:right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border text-xs sm:text-sm font-semibold max-w-md bg-white/95 border-slate-200 text-slate-800">{toastMessage.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />}{toastMessage.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />}{toastMessage.type === 'info' && <Info className="w-5 h-5 text-blue-600 shrink-0" />}<span className="flex-1">{toastMessage.message}</span></div>}<Header onOpenAuth={handleOpenAuth} /><div className="flex-1 flex max-w-[1600px] w-full mx-auto min-w-0"><Sidebar /><main onClickCapture={handleMarketplaceCapture} className="flex-1 min-w-0 px-3 sm:px-6 lg:px-8 py-4 sm:py-5 pb-24 md:pb-8 max-w-7xl mx-auto w-full"><ErrorBoundary key={activeNavTab}>{renderActiveView()}</ErrorBoundary></main></div><BottomNav /><AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} initialMode={authModalMode} />{selectedListing && <PropertyDetailModal listing={selectedListing} onClose={() => setSelectedListing(null)} />}</div>;
+
+  return <div className="min-h-screen bg-[#F1F5F9] text-slate-900 flex flex-col font-sans antialiased overflow-x-hidden">
+    {toastMessage && <div className="fixed top-4 left-3 right-3 sm:left-auto sm:right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border text-xs sm:text-sm font-semibold max-w-md bg-white/95 border-slate-200 text-slate-800">{toastMessage.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />}{toastMessage.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />}{toastMessage.type === 'info' && <Info className="w-5 h-5 text-blue-600 shrink-0" />}<span className="flex-1">{toastMessage.message}</span></div>}
+    <Header onOpenAuth={handleOpenAuth} />
+    <div className="flex-1 flex max-w-[1600px] w-full mx-auto min-w-0"><Sidebar /><main onClickCapture={handleMarketplaceCapture} className="flex-1 min-w-0 px-3 sm:px-6 lg:px-8 py-4 sm:py-5 pb-24 md:pb-8 max-w-7xl mx-auto w-full"><ErrorBoundary key={activeNavTab}>{renderActiveView()}</ErrorBoundary></main></div>
+    <BottomNav />
+    <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} initialMode={authModalMode} />
+    {selectedListing && <PropertyDetailModal listing={selectedListing} onClose={() => setSelectedListing(null)} />}
+  </div>;
 };
 
 export default function App() { return <AuthProvider><PropertyProvider><MainAppContent /></PropertyProvider></AuthProvider>; }
