@@ -63,6 +63,14 @@ service firebase.storage {
       );
     }
 
+    // Images publiques envoyées depuis le centre de publication.
+    // Le dossier utilisateur empêche un compte d'écrire dans l'espace d'un autre compte.
+    match /publications/{userId}/{kind}/{fileName} {
+      allow read: if true;
+      allow create, update: if (owner(userId) || admin()) && validImage();
+      allow delete: if owner(userId) || admin();
+    }
+
     match /messageAttachments/{conversationId}/{userId}/{fileName} {
       allow read: if signedIn()
         && request.auth.uid in firestore.get(/databases/(default)/documents/conversations/$(conversationId)).data.participantIds;
