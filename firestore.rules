@@ -7,6 +7,7 @@ service cloud.firestore {
     function userData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function role() { return signedIn() ? userData().role : null; }
     function professional() { return signedIn() && role() in ['AGENT', 'AGENCY', 'OWNER']; }
+    function shopSeller() { return signedIn() && role() == 'SELLER'; }
     function auditor() { return signedIn() && role() == 'STATE_AUDITOR'; }
     function isPublisher(data) {
       return signedIn() && (
@@ -64,7 +65,6 @@ service cloud.firestore {
       );
     }
 
-    // Collections immobilières séparées : location et vente.
     match /rentalProperties/{propertyId} {
       allow read: if resource.data.status == 'ACTIVE' || admin() || isPublisher(resource.data);
       allow create: if admin() || (professional() && isPublisher(request.resource.data));
@@ -87,7 +87,6 @@ service cloud.firestore {
       allow delete: if admin() || (isPublisher(resource.data) && resource.data.status != 'ACTIVE');
     }
 
-    // Référentiels publics utilisés par les filtres de recherche.
     match /provinces/{id} { allow read: if true; allow write: if admin(); }
     match /cities/{id} { allow read: if true; allow write: if admin(); }
     match /communes/{id} { allow read: if true; allow write: if admin(); }
@@ -97,6 +96,46 @@ service cloud.firestore {
     match /property_operations/{id} { allow read: if true; allow write: if admin(); }
     match /services/{id} { allow read: if true; allow write: if admin(); }
     match /home_banners/{id} { allow read: if true; allow write: if admin(); }
+
+    // I-SHOP : une boutique appartient à un compte Vendeur validé.
+    match /shops/{shopId} {
+      allow read: if resource.data.active != false
+        || admin()
+        || (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow create: if admin() || (
+        shopSeller()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.name is string
+      );
+      allow update: if admin() || (
+        signedIn()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId
+      );
+      allow delete: if admin() || (signedIn() && resource.data.ownerId == request.auth.uid);
+    }
+
+    // Produits I-SHOP. Les produits actifs sont publics; le vendeur voit aussi ses brouillons.
+    match /shopProducts/{productId} {
+      allow read: if resource.data.active == true
+        || admin()
+        || (signedIn() && resource.data.sellerId == request.auth.uid);
+      allow create: if admin() || (
+        shopSeller()
+        && request.resource.data.sellerId == request.auth.uid
+        && request.resource.data.shopId is string
+        && request.resource.data.title is string
+        && request.resource.data.category is string
+        && request.resource.data.price is number
+      );
+      allow update: if admin() || (
+        signedIn()
+        && resource.data.sellerId == request.auth.uid
+        && request.resource.data.sellerId == resource.data.sellerId
+        && request.resource.data.shopId == resource.data.shopId
+      );
+      allow delete: if admin() || (signedIn() && resource.data.sellerId == request.auth.uid);
+    }
 
     match /feedLikes/{likeId} {
       allow read: if true;
