@@ -7,6 +7,7 @@ import { BottomNav } from './components/layout/BottomNav';
 import { MarketplaceView } from './components/marketplace/MarketplaceView';
 import { CategoryBrowseView } from './components/marketplace/CategoryBrowseView';
 import { HomeSiteFooter } from './components/marketplace/HomeSiteFooter';
+import { GlobalSearchView } from './components/search/GlobalSearchView';
 import { FurnitureMarketplaceView } from './components/furniture/FurnitureMarketplaceView';
 import { HotelPartnersView } from './components/hotels/HotelPartnersView';
 import { ConnectivityPartnersView } from './components/connectivity/ConnectivityPartnersView';
@@ -71,6 +72,7 @@ const MainAppContent: React.FC = () => {
   const renderActiveView = () => {
     switch (activeNavTab) {
       case 'marketplace': return <><MarketplaceView /><HomeSiteFooter /></>;
+      case 'global_search': return <GlobalSearchView />;
       case 'property_category': return <CategoryBrowseView />;
       case 'furniture_marketplace': return <FurnitureMarketplaceView />;
       case 'hotel_partners': return <HotelPartnersView />;
