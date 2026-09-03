@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User as UserIcon, Shield } from 'lucide-react';
+import { Search, Shield, ShoppingCart, User as UserIcon } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { useProperties } from '../../context/PropertyContext';
@@ -45,19 +45,31 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
             </div>
           </button>
 
-          {!isAuthenticated ? (
-            <div className="flex items-center gap-1 shrink-0">
-              <button onClick={() => onOpenAuth('LOGIN')} className="px-2 sm:px-4 py-2.5 rounded-xl bg-[#1e3a8a] text-white text-[9px] sm:text-xs font-black">CONNEXION</button>
-              <button onClick={() => onOpenAuth('REGISTER')} className="px-2 sm:px-4 py-2.5 rounded-xl border border-[#1e3a8a] text-[#1e3a8a] text-[9px] sm:text-xs font-black bg-white">INSCRIPTION</button>
-            </div>
-          ) : (
-            <button onClick={() => setActiveNavTab('menu')} className="flex flex-col items-center justify-center gap-1 shrink-0">
-              <div className="w-10 h-10 rounded-full bg-[#1e3a8a] text-white flex items-center justify-center overflow-hidden">
-                {currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} alt="Profil" className="w-full h-full object-cover" /> : <UserIcon className="w-5 h-5" />}
-              </div>
-              <span className="text-[8px] sm:text-[9px] font-bold text-slate-700">PROFIL</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button type="button" onClick={() => setActiveNavTab('global_search')} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full border border-slate-200 bg-white text-[#1e3a8a] flex items-center justify-center shadow-sm" aria-label="Recherche générale">
+              <Search className="w-5 h-5" />
             </button>
-          )}
+
+            {isAuthenticated && (
+              <button type="button" onClick={() => setActiveNavTab('cart')} className="hidden sm:flex w-10 h-10 sm:w-11 sm:h-11 rounded-full border border-slate-200 bg-white text-[#1e3a8a] items-center justify-center shadow-sm" aria-label="Mon panier">
+                <ShoppingCart className="w-5 h-5" />
+              </button>
+            )}
+
+            {!isAuthenticated ? (
+              <div className="flex items-center gap-1">
+                <button onClick={() => onOpenAuth('LOGIN')} className="px-2 sm:px-4 py-2.5 rounded-xl bg-[#1e3a8a] text-white text-[9px] sm:text-xs font-black">CONNEXION</button>
+                <button onClick={() => onOpenAuth('REGISTER')} className="hidden xs:block px-2 sm:px-4 py-2.5 rounded-xl border border-[#1e3a8a] text-[#1e3a8a] text-[9px] sm:text-xs font-black bg-white">INSCRIPTION</button>
+              </div>
+            ) : (
+              <button onClick={() => setActiveNavTab('menu')} className="flex flex-col items-center justify-center gap-1 shrink-0">
+                <div className="w-10 h-10 rounded-full bg-[#1e3a8a] text-white flex items-center justify-center overflow-hidden">
+                  {currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} alt="Profil" className="w-full h-full object-cover" /> : <UserIcon className="w-5 h-5" />}
+                </div>
+                <span className="text-[8px] sm:text-[9px] font-bold text-slate-700">PROFIL</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </header>
