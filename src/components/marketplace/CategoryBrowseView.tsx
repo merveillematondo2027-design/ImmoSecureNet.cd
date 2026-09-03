@@ -9,6 +9,7 @@ const categoryConfig: Record<string, { title: string; description: string; match
   HOME: { title: 'Maisons / Villas / Immeubles', description: 'Maisons, villas, résidences et immeubles disponibles.', matches: (l) => [PropertyType.HOUSE, PropertyType.VILLA, PropertyType.BUILDING].includes(l.propertyType) },
   OFFICE: { title: 'Bureaux', description: 'Bureaux et espaces professionnels pour vos activités.', matches: (l) => l.propertyType === PropertyType.COMMERCIAL && /bureau|office/i.test(`${l.title} ${l.shortDescription}`) },
   COMMERCE: { title: 'Commerces', description: 'Locaux commerciaux, maisons commerciales et espaces d’activité.', matches: (l) => l.propertyType === PropertyType.COMMERCIAL },
+  HOTELS: { title: 'Hôtels', description: 'Hôtels, auberges, résidences et hébergements disponibles sur la plateforme.', matches: (l) => /hôtel|hotel|auberge|hébergement|residence|résidence/i.test(`${l.title} ${l.shortDescription} ${l.fullDescription}`) },
   OTHER: { title: 'Autres biens', description: 'Autres opportunités immobilières publiées sur ImmoSecureNet.', matches: () => true },
 };
 
