@@ -24,6 +24,7 @@ import { NotificationsView } from './components/notifications/NotificationsView'
 import { UserMenuView } from './components/menu/UserMenuView';
 import { InformationView } from './components/menu/InformationView';
 import { ServiceModuleView } from './components/menu/ServiceModuleView';
+import { AccountWorkspaceView } from './components/account/AccountWorkspaceView';
 import { AuthModal } from './components/auth/AuthModal';
 import { PropertyDetailModal } from './components/property/PropertyDetailModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -58,9 +59,7 @@ const MainAppContent: React.FC = () => {
       'Appartements': 'APARTMENT',
       'Maisons / Villas / Immeubles': 'HOME',
       'Bureaux': 'OFFICE',
-      'Commerces': 'COMMERCE',
       'Hôtels': 'HOTELS',
-      'Autres': 'OTHER',
     };
     const key = categories[text];
     if (!key) return;
@@ -78,6 +77,7 @@ const MainAppContent: React.FC = () => {
       case 'hotel_partners': return <HotelPartnersView />;
       case 'connectivity_partners': return <ConnectivityPartnersView />;
       case 'accounts': case 'menu': return <UserMenuView onOpenAuth={handleOpenAuth} />;
+      case 'account_workspace': return <ProtectedModule title="Espace personnel" description="Connectez-vous pour accéder à vos données personnelles." onOpenAuth={handleOpenAuth}><AccountWorkspaceView /></ProtectedModule>;
       case 'services': return <InformationView kind="services" />;
       case 'service_module': return <ServiceModuleView />;
       case 'about': return <InformationView kind="about" />;
