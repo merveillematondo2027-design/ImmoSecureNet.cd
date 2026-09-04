@@ -23,7 +23,7 @@ import { MessagingView } from './components/messaging/MessagingView';
 import { NotificationsView } from './components/notifications/NotificationsView';
 import { UserMenuView } from './components/menu/UserMenuView';
 import { InformationView } from './components/menu/InformationView';
-import { ServiceModuleView } from './components/menu/ServiceModuleView';
+import { ProfessionalServiceModuleView } from './components/menu/ProfessionalServiceModuleView';
 import { AccountWorkspaceView } from './components/account/AccountWorkspaceView';
 import { AuthModal } from './components/auth/AuthModal';
 import { PropertyDetailModal } from './components/property/PropertyDetailModal';
@@ -79,7 +79,7 @@ const MainAppContent: React.FC = () => {
       case 'accounts': case 'menu': return <UserMenuView onOpenAuth={handleOpenAuth} />;
       case 'account_workspace': return <ProtectedModule title="Espace personnel" description="Connectez-vous pour accéder à vos données personnelles." onOpenAuth={handleOpenAuth}><AccountWorkspaceView /></ProtectedModule>;
       case 'services': return <InformationView kind="services" />;
-      case 'service_module': return <ServiceModuleView />;
+      case 'service_module': return <ProfessionalServiceModuleView />;
       case 'about': return <InformationView kind="about" />;
       case 'contact': return <InformationView kind="contact" />;
       case 'settings': return <InformationView kind="settings" />;
@@ -107,4 +107,4 @@ const MainAppContent: React.FC = () => {
   </div>;
 };
 
-export default function App() { return <AuthProvider><PropertyProvider><MainAppContent /></PropertyProvider></AuthProvider>; }
+export default function App() { return <AuthProvider><PropertyProvider><MainAppContent /></PropertyProvider></AuthProvider>;
