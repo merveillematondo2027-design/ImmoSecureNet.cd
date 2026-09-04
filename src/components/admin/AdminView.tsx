@@ -1,366 +1,72 @@
-import React, { useState } from 'react';
-import {
-  LayoutDashboard,
-  Users,
-  ShieldCheck,
-  Building,
-  Megaphone,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  UserCheck,
-  UserX,
-  Search,
-  Activity,
-  Terminal,
-  Settings,
-  Sparkles,
-  ArrowRight,
-  TrendingUp,
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Activity, AlertTriangle, ArrowRight, Building2, CheckCircle2, Clock3, FileCheck2, LayoutDashboard, Megaphone, Search, ShieldCheck, Terminal, UserCheck, Users, XCircle } from 'lucide-react';
 import { useProperties } from '../../context/PropertyContext';
 import { useAuth } from '../../context/AuthContext';
 import { UserRole, VerificationStatus, ListingStatus } from '../../types';
 import { SponsoredAdsManager } from './SponsoredAdsManager';
 
+type AdminTab = 'OVERVIEW' | 'USERS' | 'MODERATION' | 'OPERATIONS';
+
+const roleLabel: Record<string,string> = {
+  USER:'Utilisateur', AGENT:'Agent immobilier', AGENCY:'Agence', OWNER:'Propriétaire', STATE_AUDITOR:'Audit État', ADMIN:'Administrateur', DEVELOPER_AUDITOR:'Développeur / Audit'
+};
+
 export const AdminView: React.FC = () => {
   const { listings, updateListing, showToast, setActiveNavTab, activeNavTab } = useProperties();
   const { allUsers, updateUserRole, updateUserStatus } = useAuth();
-
-  const [adminTab, setAdminTab] = useState<'USERS' | 'MODERATION' | 'STATS'>('USERS');
+  const [adminTab, setAdminTab] = useState<AdminTab>('OVERVIEW');
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
-  // Count metrics
-  const totalUsers = allUsers.length;
-  const verifiedUsers = allUsers.filter((u) => u.verificationStatus === VerificationStatus.VERIFIED).length;
-  const pendingListings = listings.filter((l) => l.status === ListingStatus.PENDING_REVIEW);
-  const activeListings = listings.filter((l) => l.status === ListingStatus.ACTIVE);
+  const pendingListings = listings.filter(l => l.status === ListingStatus.PENDING_REVIEW);
+  const activeListings = listings.filter(l => l.status === ListingStatus.ACTIVE);
+  const verifiedUsers = allUsers.filter(u => u.verificationStatus === VerificationStatus.VERIFIED);
+  const pendingUsers = allUsers.filter(u => u.verificationStatus === VerificationStatus.PENDING);
+  const proUsers = allUsers.filter(u => [UserRole.AGENT,UserRole.AGENCY,UserRole.OWNER].includes(u.role));
+  const attentionCount = pendingListings.length + pendingUsers.length;
 
-  // Filtered users
-  const filteredUsers = allUsers.filter((u) => {
-    if (!userSearchQuery) return true;
-    const q = userSearchQuery.toLowerCase();
-    return (
-      u.fullName.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      u.role.toLowerCase().includes(q)
-    );
-  });
+  const filteredUsers = useMemo(() => allUsers.filter(u => {
+    const q = userSearchQuery.trim().toLowerCase();
+    const matchQ = !q || `${u.fullName} ${u.email} ${u.role} ${u.companyName || ''}`.toLowerCase().includes(q);
+    const matchRole = roleFilter === 'ALL' || u.role === roleFilter;
+    const matchStatus = statusFilter === 'ALL' || u.verificationStatus === statusFilter;
+    return matchQ && matchRole && matchStatus;
+  }), [allUsers,userSearchQuery,roleFilter,statusFilter]);
 
-  const handleListingModeration = async (listingId: string, approve: boolean) => {
-    await updateListing(listingId, {
-      status: approve ? ListingStatus.ACTIVE : ListingStatus.SUSPENDED,
-    });
-    showToast(approve ? 'Annonce approuvée et mise en ligne !' : 'Annonce rejetée.', approve ? 'success' : 'info');
+  const moderate = async (id:string, approve:boolean) => {
+    await updateListing(id,{status: approve ? ListingStatus.ACTIVE : ListingStatus.SUSPENDED});
+    showToast(approve ? 'Annonce approuvée et publiée.' : 'Annonce rejetée et suspendue.', approve ? 'success':'info');
   };
 
-  // If activeNavTab is admin_sponsors, show SponsoredAdsManager
-  if (activeNavTab === 'admin_sponsors') {
-    return <SponsoredAdsManager />;
-  }
+  if (activeNavTab === 'admin_sponsors') return <SponsoredAdsManager/>;
 
-  // If activeNavTab is admin_accueil, render the Welcome Shortcuts Hub
-  if (activeNavTab === 'admin_accueil') {
-    return (
-      <div className="space-y-6 pb-12">
-        {/* Welcome Hub Banner */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/40 p-6 rounded-3xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-black text-white">Centre de Contrôle Général Admin</h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-extrabold">
-                Super-Admin
-              </span>
-            </div>
-            <p className="text-xs text-slate-300 mt-1 max-w-xl">
-              Bienvenue sur la console d'administration ImmoSecureNet. Pilotez l'ensemble des modules, vérifiez les accréditations professionnelles et régulez la plateforme.
-            </p>
-          </div>
+  const Stat = ({label,value,detail,icon:Icon,tone='text-white'}:any) => <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-sm"><div className="flex items-start justify-between"><div><p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p><p className={`mt-2 text-2xl font-black ${tone}`}>{value}</p><p className="mt-1 text-[11px] text-slate-400">{detail}</p></div><div className="rounded-xl border border-slate-700 bg-slate-950 p-2.5"><Icon className="h-5 w-5 text-cyan-400"/></div></div></div>;
 
-          <div className="flex items-center gap-2 bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-slate-800 text-xs">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="text-emerald-400 font-semibold">Système 100% Opérationnel</span>
-          </div>
-        </div>
+  const nav = [
+    {id:'OVERVIEW',label:'Vue générale',icon:LayoutDashboard}, {id:'USERS',label:'Comptes & accès',icon:Users}, {id:'MODERATION',label:`Modération (${pendingListings.length})`,icon:ShieldCheck}, {id:'OPERATIONS',label:'Centre opérations',icon:Activity}
+  ];
 
-        {/* Quick Access Tiles */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            {
-              title: 'Tableau de bord KPIs',
-              desc: 'Utilisateurs, modération & permissions',
-              icon: LayoutDashboard,
-              action: () => setActiveNavTab('admin_dashboard'),
-              color: 'from-blue-600 to-cyan-600',
-            },
-            {
-              title: 'Régie Pubs Sponsor',
-              desc: 'Bannières payantes & CTR',
-              icon: Megaphone,
-              action: () => setActiveNavTab('admin_sponsors'),
-              color: 'from-purple-600 to-indigo-600',
-            },
-            {
-              title: 'AuditLogs Système',
-              desc: 'Télémétrie & sécurité temps réel',
-              icon: Terminal,
-              action: () => setActiveNavTab('dev_logs'),
-              color: 'from-amber-600 to-orange-600',
-            },
-            {
-              title: 'Catalogue Marketplace',
-              desc: 'Consulter les annonces publiques',
-              icon: Building,
-              action: () => setActiveNavTab('marketplace'),
-              color: 'from-emerald-600 to-teal-600',
-            },
-          ].map((tile, i) => {
-            const Icon = tile.icon;
-            return (
-              <div
-                key={i}
-                onClick={tile.action}
-                className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-3xl p-5 shadow-lg cursor-pointer transition-all hover:-translate-y-0.5 group space-y-3"
-              >
-                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${tile.color} flex items-center justify-center text-white shadow-md`}>
-                  <Icon className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-white group-hover:text-cyan-300 transition-colors">
-                    {tile.title}
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{tile.desc}</p>
-                </div>
-                <div className="pt-2 flex items-center gap-1 text-xs text-cyan-400 font-semibold">
-                  <span>Accéder</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Global Summary Statistics */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-            <div className="text-slate-400 text-xs">Comptes Inscrits</div>
-            <div className="text-2xl font-black text-white mt-1">{totalUsers}</div>
-            <div className="text-[10px] text-emerald-400 mt-0.5">Dont {verifiedUsers} certifiés</div>
-          </div>
-          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-            <div className="text-slate-400 text-xs">Annonces Actives</div>
-            <div className="text-2xl font-black text-cyan-300 mt-1">{activeListings.length}</div>
-            <div className="text-[10px] text-slate-400 mt-0.5">En ligne sur Marketplace</div>
-          </div>
-          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-            <div className="text-slate-400 text-xs">Modération en attente</div>
-            <div className="text-2xl font-black text-amber-300 mt-1">{pendingListings.length}</div>
-            <div className="text-[10px] text-amber-400 mt-0.5">À valider</div>
-          </div>
-          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
-            <div className="text-slate-400 text-xs">Sécurité du Serveur</div>
-            <div className="text-2xl font-black text-emerald-400 mt-1">100%</div>
-            <div className="text-[10px] text-slate-400 mt-0.5">Zéro intrusion</div>
-          </div>
-        </div>
+  return <div className="space-y-5 pb-14">
+    <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-xl">
+      <div className="border-b border-slate-800 bg-gradient-to-r from-slate-950 via-blue-950 to-slate-950 p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-black text-white sm:text-2xl">Centre de contrôle ImmoSecureNet</h1><span className="rounded-full border border-red-400/30 bg-red-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-300">Administration générale</span></div><p className="mt-2 max-w-3xl text-xs leading-5 text-slate-400">Pilotage central des comptes, accréditations, annonces, sécurité, publicité et opérations de la plateforme.</p></div><div className="flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400"/><div><div className="text-xs font-bold text-emerald-300">Console active</div><div className="text-[10px] text-slate-400">{attentionCount} élément(s) nécessitent une action</div></div></div></div>
       </div>
-    );
-  }
+      <div className="flex gap-1 overflow-x-auto p-2">{nav.map(({id,label,icon:Icon})=><button key={id} onClick={()=>setAdminTab(id as AdminTab)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${adminTab===id?'bg-blue-600 text-white':'text-slate-400 hover:bg-slate-900 hover:text-white'}`}><Icon className="h-4 w-4"/>{label}</button>)}</div>
+    </section>
 
-  // DEFAULT VIEW: Admin Dashboard with User Management and Moderation Queue
-  return (
-    <div className="space-y-6 pb-12">
-      {/* Dashboard Header */}
-      <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg sm:text-xl font-bold text-white">Tableau de bord Administrateur</h1>
-            <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 text-[10px] font-bold">
-              Gestion des Rôles & Modération
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Gérez les comptes utilisateurs, validez les accréditations et modérez les annonces soumises.
-          </p>
-        </div>
-      </div>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><Stat label="Utilisateurs" value={allUsers.length} detail={`${verifiedUsers.length} comptes vérifiés`} icon={Users}/><Stat label="Professionnels" value={proUsers.length} detail="Agents, agences et propriétaires" icon={Building2} tone="text-cyan-300"/><Stat label="Annonces actives" value={activeListings.length} detail={`${pendingListings.length} en modération`} icon={FileCheck2} tone="text-emerald-300"/><Stat label="À traiter" value={attentionCount} detail="Priorités administratives" icon={AlertTriangle} tone={attentionCount?'text-amber-300':'text-emerald-300'}/></div>
 
-      {/* Sub-Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
-        {[
-          { id: 'USERS', label: `Comptes & Permissions (${allUsers.length})`, icon: Users },
-          { id: 'MODERATION', label: `File de Modération (${pendingListings.length})`, icon: ShieldCheck },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = adminTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setAdminTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-                isActive
-                  ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
+    {adminTab==='OVERVIEW' && <div className="grid gap-4 lg:grid-cols-3">
+      <section className="lg:col-span-2 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-blue-700">Priorités</p><h2 className="mt-1 text-lg font-black text-slate-950">Actions administratives</h2></div><Clock3 className="h-5 w-5 text-slate-400"/></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><button onClick={()=>setAdminTab('USERS')} className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left hover:border-amber-300"><div className="flex justify-between"><UserCheck className="h-5 w-5 text-amber-700"/><span className="text-xl font-black text-amber-800">{pendingUsers.length}</span></div><p className="mt-3 text-sm font-black text-slate-900">Comptes à vérifier</p><p className="mt-1 text-xs text-slate-600">Examiner les nouvelles inscriptions et accréditations.</p></button><button onClick={()=>setAdminTab('MODERATION')} className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-left hover:border-blue-300"><div className="flex justify-between"><ShieldCheck className="h-5 w-5 text-blue-700"/><span className="text-xl font-black text-blue-800">{pendingListings.length}</span></div><p className="mt-3 text-sm font-black text-slate-900">Annonces à modérer</p><p className="mt-1 text-xs text-slate-600">Contrôler les contenus avant publication.</p></button></div></section>
+      <section className="rounded-3xl border border-slate-800 bg-slate-900 p-5 text-white shadow-sm"><p className="text-[10px] font-black uppercase tracking-[.18em] text-cyan-400">Accès rapides</p><h2 className="mt-1 text-lg font-black">Outils de pilotage</h2><div className="mt-4 space-y-2">{[{t:'Régie publicitaire',i:Megaphone,a:()=>setActiveNavTab('admin_sponsors')},{t:'Journal technique',i:Terminal,a:()=>setActiveNavTab('dev_logs')},{t:'Marketplace publique',i:Building2,a:()=>setActiveNavTab('marketplace')}].map(({t,i:Icon,a})=><button key={t} onClick={a} className="flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-950 p-3 text-left hover:border-slate-600"><Icon className="h-4 w-4 text-cyan-400"/><span className="flex-1 text-xs font-bold">{t}</span><ArrowRight className="h-4 w-4 text-slate-500"/></button>)}</div></section>
+    </div>}
 
-      {/* TAB 1: USER MANAGEMENT TABLE */}
-      {adminTab === 'USERS' && (
-        <div className="space-y-4">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Rechercher un utilisateur par nom, email ou rôle..."
-              value={userSearchQuery}
-              onChange={(e) => setUserSearchQuery(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-            />
-          </div>
+    {adminTab==='USERS' && <section className="rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 p-5"><div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div><h2 className="text-lg font-black text-slate-950">Gestion des comptes et permissions</h2><p className="mt-1 text-xs text-slate-500">Rechercher, filtrer, certifier, suspendre et attribuer les rôles système.</p></div><div className="flex flex-wrap gap-2"><select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold"><option value="ALL">Tous les rôles</option>{Object.values(UserRole).map(r=><option key={r} value={r}>{roleLabel[r]||r}</option>)}</select><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold"><option value="ALL">Tous les statuts</option>{Object.values(VerificationStatus).map(s=><option key={s} value={s}>{s}</option>)}</select></div></div><div className="relative mt-4"><Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/><input value={userSearchQuery} onChange={e=>setUserSearchQuery(e.target.value)} placeholder="Nom, e-mail, entreprise ou rôle..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none focus:border-blue-400"/></div></div>
+      <div className="overflow-x-auto"><table className="w-full min-w-[920px] text-left"><thead><tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500"><th className="p-4">Compte</th><th className="p-4">Rôle</th><th className="p-4">Vérification</th><th className="p-4">Profil professionnel</th><th className="p-4 text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredUsers.map(user=><tr key={user.id} className="hover:bg-slate-50"><td className="p-4"><div className="font-black text-sm text-slate-900">{user.fullName}</div><div className="mt-0.5 text-xs text-slate-500">{user.email}</div></td><td className="p-4"><select value={user.role} onChange={e=>{updateUserRole(user.id,e.target.value as UserRole);showToast('Rôle mis à jour.','success')}} className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold text-slate-700">{Object.values(UserRole).map(r=><option key={r} value={r}>{roleLabel[r]||r}</option>)}</select></td><td className="p-4"><select value={user.verificationStatus} onChange={e=>{updateUserStatus(user.id,e.target.value as VerificationStatus);showToast('Statut mis à jour.','info')}} className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold"><option value={VerificationStatus.VERIFIED}>Certifié</option><option value={VerificationStatus.PENDING}>En attente</option><option value={VerificationStatus.REJECTED}>Refusé</option><option value={VerificationStatus.SUSPENDED}>Suspendu</option><option value={VerificationStatus.BANNED}>Banni</option></select></td><td className="p-4"><div className="text-xs font-semibold text-slate-700">{user.companyName || user.department || 'Compte personnel'}</div><div className="mt-1 text-[10px] text-slate-400">{user.professionalLicenseNumber || 'Aucune licence renseignée'}</div></td><td className="p-4 text-right">{user.verificationStatus!==VerificationStatus.VERIFIED?<button onClick={()=>{updateUserStatus(user.id,VerificationStatus.VERIFIED);showToast(`Compte de ${user.fullName} certifié.`,'success')}} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white">Certifier</button>:<span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5"/>Conforme</span>}</td></tr>)}</tbody></table></div></section>}
 
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
-                  <tr>
-                    <th className="p-3.5">Utilisateur</th>
-                    <th className="p-3.5">Rôle Système</th>
-                    <th className="p-3.5">Statut Vérification</th>
-                    <th className="p-3.5">Détails Pro</th>
-                    <th className="p-3.5 text-right">Modifier Rôle / Statut</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/80 text-slate-200">
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
-                      <td className="p-3.5">
-                        <div className="font-bold text-white">{user.fullName}</div>
-                        <div className="text-[11px] text-slate-400">{user.email}</div>
-                      </td>
-                      <td className="p-3.5">
-                        <select
-                          value={user.role}
-                          onChange={(e) => {
-                            updateUserRole(user.id, e.target.value as UserRole);
-                            showToast(`Rôle de ${user.fullName} modifié en ${e.target.value}`, 'success');
-                          }}
-                          className="bg-slate-950 border border-slate-700 text-xs text-cyan-300 rounded-lg px-2 py-1 font-semibold focus:outline-none"
-                        >
-                          <option value={UserRole.USER}>USER (Standard)</option>
-                          <option value={UserRole.AGENT}>AGENT (Immobilier)</option>
-                          <option value={UserRole.AGENCY}>AGENCY (Agence)</option>
-                          <option value={UserRole.OWNER}>OWNER (Propriétaire)</option>
-                          <option value={UserRole.STATE_AUDITOR}>STATE_AUDITOR (Audit État)</option>
-                          <option value={UserRole.ADMIN}>ADMIN (Administrateur)</option>
-                          <option value={UserRole.DEVELOPER_AUDITOR}>DEVELOPER_AUDITOR (Dev)</option>
-                        </select>
-                      </td>
-                      <td className="p-3.5">
-                        <select
-                          value={user.verificationStatus}
-                          onChange={(e) => {
-                            updateUserStatus(user.id, e.target.value as VerificationStatus);
-                            showToast(`Statut mis à jour`, 'info');
-                          }}
-                          className={`text-[10px] font-bold rounded-lg px-2 py-1 border focus:outline-none ${
-                            user.verificationStatus === VerificationStatus.VERIFIED
-                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                              : user.verificationStatus === VerificationStatus.PENDING
-                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                              : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                          }`}
-                        >
-                          <option value={VerificationStatus.VERIFIED}>VERIFIED (Certifié)</option>
-                          <option value={VerificationStatus.PENDING}>PENDING (En attente)</option>
-                          <option value={VerificationStatus.REJECTED}>REJECTED (Refusé)</option>
-                          <option value={VerificationStatus.SUSPENDED}>SUSPENDED (Suspendu)</option>
-                          <option value={VerificationStatus.BANNED}>BANNED (Banni)</option>
-                        </select>
-                      </td>
-                      <td className="p-3.5 text-[11px] text-slate-400">
-                        {user.companyName || user.department || user.professionalLicenseNumber || 'Compte personnel'}
-                      </td>
-                      <td className="p-3.5 text-right">
-                        {user.verificationStatus !== VerificationStatus.VERIFIED ? (
-                          <button
-                            onClick={() => {
-                              updateUserStatus(user.id, VerificationStatus.VERIFIED);
-                              showToast(`Accréditation validée pour ${user.fullName}`, 'success');
-                            }}
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-semibold"
-                          >
-                            Valider compte
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-emerald-400 font-semibold">✓ Conforme</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+    {adminTab==='MODERATION' && <section className="space-y-3">{pendingListings.length===0?<div className="rounded-3xl border border-emerald-200 bg-white p-10 text-center shadow-sm"><CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600"/><h2 className="mt-3 font-black text-slate-900">File de modération vide</h2><p className="mt-1 text-xs text-slate-500">Toutes les annonces soumises ont été traitées.</p></div>:pendingListings.map(listing=><article key={listing.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><img src={listing.mainPhoto} alt={listing.title} className="h-24 w-full rounded-2xl object-cover lg:w-32"/><div className="min-w-0 flex-1"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700">EN ATTENTE DE CONTRÔLE</span><h3 className="mt-2 text-base font-black text-slate-950">{listing.title}</h3><p className="mt-1 text-xs text-slate-500">Soumis par {listing.publishedBy.name} · {listing.publishedBy.companyName || 'Indépendant'}</p></div><div className="flex gap-2"><button onClick={()=>moderate(listing.id,false)} className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700"><XCircle className="h-4 w-4"/>Rejeter</button><button onClick={()=>moderate(listing.id,true)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white"><CheckCircle2 className="h-4 w-4"/>Approuver</button></div></div></article>)}</section>}
 
-      {/* TAB 2: LISTINGS MODERATION QUEUE */}
-      {adminTab === 'MODERATION' && (
-        <div className="space-y-3">
-          {pendingListings.length === 0 ? (
-            <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-3xl text-slate-400 text-xs">
-              <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-              <div className="font-semibold text-white">Toutes les annonces sont modérées</div>
-              <p className="mt-1">Aucune annonce n'est actuellement en file d'attente.</p>
-            </div>
-          ) : (
-            pendingListings.map((listing) => (
-              <div
-                key={listing.id}
-                className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <img
-                    src={listing.mainPhoto}
-                    alt={listing.title}
-                    className="w-16 h-16 rounded-2xl object-cover shrink-0"
-                  />
-                  <div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      En attente de validation
-                    </span>
-                    <h3 className="font-bold text-sm text-white mt-1">{listing.title}</h3>
-                    <p className="text-xs text-slate-400">
-                      Publié par : {listing.publishedBy.name} ({listing.publishedBy.companyName || 'Indépendant'})
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                  <button
-                    onClick={() => handleListingModeration(listing.id, false)}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold transition-colors"
-                  >
-                    Rejeter
-                  </button>
-                  <button
-                    onClick={() => handleListingModeration(listing.id, true)}
-                    className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold rounded-xl text-xs shadow-md transition-all"
-                  >
-                    Approuver la mise en ligne
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
+    {adminTab==='OPERATIONS' && <div className="grid gap-4 md:grid-cols-2"><section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><Activity className="h-6 w-6 text-blue-700"/><h2 className="mt-3 text-lg font-black">Supervision opérationnelle</h2><p className="mt-2 text-xs leading-5 text-slate-500">Point central pour surveiller l’activité de la plateforme et accéder aux outils techniques.</p><button onClick={()=>setActiveNavTab('dev_logs')} className="mt-4 w-full rounded-xl bg-slate-950 py-3 text-xs font-black text-white">Ouvrir les journaux système</button></section><section className="rounded-3xl border border-slate-800 bg-slate-900 p-5 text-white shadow-sm"><ShieldCheck className="h-6 w-6 text-emerald-400"/><h2 className="mt-3 text-lg font-black">Contrôle & gouvernance</h2><div className="mt-4 space-y-2 text-xs text-slate-300"><p>• {verifiedUsers.length} comptes certifiés</p><p>• {pendingUsers.length} comptes en attente</p><p>• {activeListings.length} annonces actives</p><p>• {pendingListings.length} contenus en modération</p></div></section></div>}
+  </div>;
 };
