@@ -54,13 +54,7 @@ const MainAppContent: React.FC = () => {
     const button = (event.target as HTMLElement).closest('button');
     if (!button) return;
     const text = (button.textContent || '').trim().replace(/\s+/g, ' ');
-    const categories: Record<string, string> = {
-      'Terrains / Parcelles': 'LAND',
-      'Appartements': 'APARTMENT',
-      'Maisons / Villas / Immeubles': 'HOME',
-      'Bureaux': 'OFFICE',
-      'Hôtels': 'HOTELS',
-    };
+    const categories: Record<string, string> = { 'Terrains / Parcelles': 'LAND', 'Appartements': 'APARTMENT', 'Maisons / Villas / Immeubles': 'HOME', 'Bureaux': 'OFFICE', 'Hôtels': 'HOTELS' };
     const key = categories[text];
     if (!key) return;
     event.preventDefault(); event.stopPropagation();
@@ -107,4 +101,4 @@ const MainAppContent: React.FC = () => {
   </div>;
 };
 
-export default function App() { return <AuthProvider><PropertyProvider><MainAppContent /></PropertyProvider></AuthProvider>;
+export default function App() { return <AuthProvider><PropertyProvider><MainAppContent /></PropertyProvider></AuthProvider>; }
