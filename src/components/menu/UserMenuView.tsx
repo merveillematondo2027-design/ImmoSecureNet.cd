@@ -24,6 +24,11 @@ export const UserMenuView: React.FC<Props> = ({ onOpenAuth }) => {
 
   const pendingRequest = getAccessRequests().find((item) => item.status === 'pending');
 
+  const openWorkspace = (workspace: 'favorites' | 'appointments' | 'cart' | 'documents') => {
+    sessionStorage.setItem('immosecure_account_workspace', workspace);
+    setActiveNavTab('account_workspace');
+  };
+
   const submitProfessionalRequest = async () => {
     if (!selectedProfessionalType) {
       showToast('Choisissez d’abord le type de compte professionnel.', 'info');
@@ -56,11 +61,11 @@ export const UserMenuView: React.FC<Props> = ({ onOpenAuth }) => {
   const professional = [UserRole.AGENT, UserRole.AGENCY, UserRole.OWNER, UserRole.SELLER].includes(currentUser.role);
 
   const commonRows = [
-    { label:'Favoris', subtitle:'Vos annonces enregistrées', icon:Heart, action:()=>showToast('Vos favoris seront chargés depuis votre compte.', 'info') },
-    { label:'Mes rendez-vous', subtitle:'Visites et rendez-vous programmés', icon:CalendarCheck, action:()=>showToast('Vos rendez-vous seront chargés depuis votre compte.', 'info') },
+    { label:'Favoris', subtitle:'Vos annonces enregistrées', icon:Heart, action:()=>openWorkspace('favorites') },
+    { label:'Mes rendez-vous', subtitle:'Visites et rendez-vous programmés', icon:CalendarCheck, action:()=>openWorkspace('appointments') },
     { label:'Messages', subtitle:'Vos discussions et demandes', icon:MessageCircle, action:()=>setActiveNavTab('messages') },
-    { label:'Mon panier', subtitle:'Articles et biens ajoutés pour achat', icon:ShoppingCart, action:()=>showToast('Votre panier sera chargé depuis votre compte.', 'info') },
-    { label:'Documents', subtitle:'Pièces, contrats et vérifications', icon:FileText, action:()=>showToast('Vos documents seront regroupés dans cet espace.', 'info') },
+    { label:'Mon panier', subtitle:'Articles et biens ajoutés pour achat', icon:ShoppingCart, action:()=>openWorkspace('cart') },
+    { label:'Documents', subtitle:'Pièces, contrats et vérifications', icon:FileText, action:()=>openWorkspace('documents') },
     { label:'Paramètres', subtitle:'Sécurité, confidentialité et préférences', icon:Settings, action:()=>setActiveNavTab('settings') },
   ];
 
@@ -77,11 +82,11 @@ export const UserMenuView: React.FC<Props> = ({ onOpenAuth }) => {
     { title:'Demandes clients', text:'Voir les discussions liées aux produits publiés.', icon:MessageCircle, action:()=>setActiveNavTab('messages') },
   ] : currentUser.role === UserRole.OWNER ? [
     { title:'Mes biens', text:'Enregistrer, mettre à jour et suivre vos propriétés.', icon:Home, action:()=>setActiveNavTab('owner_properties') },
-    { title:'Documents des biens', text:'Suivre les pièces, contrats et vérifications.', icon:FileText, action:()=>showToast('Espace documentaire du propriétaire.', 'info') },
+    { title:'Documents des biens', text:'Suivre les pièces, contrats et vérifications.', icon:FileText, action:()=>openWorkspace('documents') },
     { title:'Demandes de services', text:'Accéder aux services professionnels ImmoSecureNet.', icon:Briefcase, action:()=>setActiveNavTab('services') },
   ] : [
     { title:'Mes offres', text:'Gérer les biens et offres représentés par votre profil.', icon:Building2, action:()=>setActiveNavTab('agent_dashboard') },
-    { title:'Accréditation & vérification', text:'Suivre votre identité professionnelle et vos justificatifs.', icon:BadgeCheck, action:()=>showToast('Statut de vérification professionnelle.', 'info') },
+    { title:'Accréditation & vérification', text:'Suivre votre identité professionnelle et vos justificatifs.', icon:BadgeCheck, action:()=>{ sessionStorage.setItem('immosecure_service_module','verification'); setActiveNavTab('service_module'); } },
     { title:'Clients & messages', text:'Centraliser les demandes reçues depuis vos annonces.', icon:Users, action:()=>setActiveNavTab('messages') },
   ];
 
